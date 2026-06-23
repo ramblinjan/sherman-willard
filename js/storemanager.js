@@ -1,34 +1,42 @@
-import { ZONE, SHAKE_DURATIONS } from './constants.js';
+import { ZONE, SHAKE_DURATIONS, TINT_DURATIONS } from './constants.js';
 import { getNearbyInteractZone } from './tilemap.js';
 import { generateOrder } from './order.js';
-import { Customer, QUEUE_POSITIONS, PICKUP_POSITIONS } from './customer.js';
+import { Customer } from './customer.js';
 import { OrderTicket, TICKET_STATUS } from './ticket.js';
 import { showPrompt, showCelebration } from './hud.js';
 import { pickPersona, generateLine } from './dialogue.js';
 
-const MAX_QUEUE     = 3;
-const SPAWN_INTERVAL = 8;   // seconds between spawn attempts
+const MAX_QUEUE      = 6;
+const MAX_CARRY      = 3;
+const SPAWN_INTERVAL = 8;
 const CELEBRATION_TIME = 2.0;
 
 const SHAKER_ZONES = [ZONE.SHAKER_A, ZONE.SHAKER_B, ZONE.SHAKER_C];
 
 export class StoreManager {
   constructor() {
-    this.tickets = new Map();   // id → OrderTicket
-    this.queue = [];            // ticket IDs waiting at register
-    this.atPickup = [];         // ticket IDs waiting at pickup window
-    this.shakers = [
+    this.tickets  = new Map();
+    this.queue    = [];
+    this.atPickup = [];
+    this.shakers  = [
       { ticketId: null, timer: 0, status: 'idle' },
       { ticketId: null, timer: 0, status: 'idle' },
       { ticketId: null, timer: 0, status: 'idle' },
     ];
-    this.score = 0;
+    this.tintMachine = {
+      inputQueue:  [],
+      processing:  null,  // { ticketId, timer, total }
+      outputQueue: [],
+      active:      false,
+      bangTimer:   0,
+    };
+    this.score      = 0;
     this.flashZones = [];
 
-    this._ticketSeq = 0;
-    this._spawnTimer = 1.0; // quick first spawn
+    this._ticketSeq       = 0;
+    this._spawnTimer      = 1.0;
     this._celebrationTimer = 0;
-    this._freePickupSlots = [0, 1, 2]; // available pickup positions
+    this._freePickupSlots  = [0, 1, 2, 3, 4, 5];
   }
 
   // ── Main update ──────────────────────────────────────────────────────────
@@ -36,6 +44,7 @@ export class StoreManager {
   update(dt, player) {
     this._updateFlashes(dt);
     this._tickShakers(dt);
+    this._tickTintMachine(dt);
     this._tickSpawn(dt);
 
     if (this._celebrationTimer > 0) {
@@ -52,15 +61,11 @@ export class StoreManager {
     const zone = getNearbyInteractZone(player.x, player.y);
     if (!zone) return;
 
-    // Register — take front queued order
     if (zone === ZONE.REGISTER) {
-      if (this.queue.length > 0 && player.activeTaskId == null && player.heldMixedCan == null) {
-        this._takeOrder(player);
-      }
+      this._takeOrder(player);
       return;
     }
 
-    // Shelves — grab base paint for active task
     const baseMap = {
       [ZONE.SHELF_WHITE]: 'WHITE',
       [ZONE.SHELF_GRAY]:  'GRAY',
@@ -71,20 +76,27 @@ export class StoreManager {
       return;
     }
 
-    // Tint station
-    if (zone === ZONE.TINT_STATION) {
-      this._grabTint(player);
+    if (zone === ZONE.TINT_INPUT) {
+      this._loadTintInput(player);
       return;
     }
 
-    // Shakers
+    if (zone === ZONE.TINT_MACHINE_BODY) {
+      this._activateTinter();
+      return;
+    }
+
+    if (zone === ZONE.TINT_OUTPUT) {
+      this._grabTintOutput(player);
+      return;
+    }
+
     const shakerIdx = SHAKER_ZONES.indexOf(zone);
     if (shakerIdx !== -1) {
       this._interactShaker(player, shakerIdx);
       return;
     }
 
-    // Pickup window
     if (zone === ZONE.PICKUP) {
       this._deliverPaint(player);
     }
@@ -93,103 +105,114 @@ export class StoreManager {
   // ── Private: order flow ──────────────────────────────────────────────────
 
   _takeOrder(player) {
-    const ticketId = this.queue.shift();
-    const ticket = this.tickets.get(ticketId);
-    ticket.status = TICKET_STATUS.FETCHING_BASE;
-    player.activeTaskId = ticketId;
+    if (this.queue.length === 0) return;
+    if (player.totalHeld >= MAX_CARRY) return;
+    if (this._freePickupSlots.length === 0) return;
 
-    // Move customer to pickup window
-    const pickupSlot = this._freePickupSlots.shift();
-    ticket.pickupSlot = pickupSlot;
+    const ticketId = this.queue.shift();
+    const ticket   = this.tickets.get(ticketId);
+    ticket.status  = TICKET_STATUS.BASE_GRABBED;
+    player.cans.push({ ticketId, baseType: null });
+
+    const pickupSlot   = this._freePickupSlots.shift();
+    ticket.pickupSlot  = pickupSlot;
     this.atPickup.push(ticketId);
     ticket.customer.moveToPickup(pickupSlot);
 
-    // Remaining queue customers shift forward
-    this.queue.forEach((id, i) => {
-      this.tickets.get(id).customer.advanceQueue(i);
-    });
+    this.queue.forEach((id, i) => this.tickets.get(id).customer.advanceQueue(i));
 
-    // Fire ORDER speech bubble
     this._requestLine(ticket, 'ORDER');
   }
 
   _grabBase(player, grabbed, zone) {
-    if (player.activeTaskId == null) return;
-    const ticket = this.tickets.get(player.activeTaskId);
-    if (!ticket || ticket.status !== TICKET_STATUS.FETCHING_BASE) return;
+    const entry = player.cans.find(e => {
+      const t = this.tickets.get(e.ticketId);
+      return e.baseType === null && t && t.order.baseType === grabbed;
+    });
 
-    if (grabbed === ticket.order.baseType) {
-      player.heldBase = grabbed;
-      ticket.status = TICKET_STATUS.FETCHING_TINT;
-    } else {
-      this._addFlash(zone);
+    if (entry) {
+      entry.baseType = grabbed;
+    } else if (player.cans.some(e => e.baseType === null)) {
+      this._addFlash(zone); // unfilled slots, but wrong shelf
     }
   }
 
-  _grabTint(player) {
-    if (player.activeTaskId == null || !player.heldBase) return;
-    const ticket = this.tickets.get(player.activeTaskId);
-    if (!ticket || ticket.status !== TICKET_STATUS.FETCHING_TINT) return;
+  _loadTintInput(player) {
+    const entryIdx = player.cans.findIndex(e => e.baseType !== null);
+    if (entryIdx === -1) return;
 
-    player.heldTint = ticket.order.tintCode;
-    ticket.status = TICKET_STATUS.LOADING_SHAKER;
+    const [entry] = player.cans.splice(entryIdx, 1);
+    const ticket  = this.tickets.get(entry.ticketId);
+    if (ticket) {
+      ticket.status = TICKET_STATUS.TINT_QUEUED;
+      this.tintMachine.inputQueue.push(entry.ticketId);
+    }
+  }
+
+  _activateTinter() {
+    const tm = this.tintMachine;
+    if (tm.inputQueue.length > 0 || tm.processing) tm.active = true;
+  }
+
+  _grabTintOutput(player) {
+    const tm = this.tintMachine;
+    if (tm.outputQueue.length === 0) return;
+    if (player.sealedCans.length >= MAX_CARRY) return;
+
+    const ticketId = tm.outputQueue.shift();
+    const ticket   = this.tickets.get(ticketId);
+    if (ticket) ticket.status = TICKET_STATUS.SEALED;
+    player.sealedCans.push({ ticketId });
+    tm.bangTimer = 0.6;
   }
 
   _interactShaker(player, idx) {
     const shaker = this.shakers[idx];
 
-    // Collect from a ready shaker
     if (shaker.status === 'ready') {
       const ticket = this.tickets.get(shaker.ticketId);
-      player.heldMixedCan = ticket.order;
-      player.deliveryTicketId = shaker.ticketId;
-      ticket.status = TICKET_STATUS.AT_PICKUP;
+      if (ticket) {
+        player.mixedCans.push({ ticketId: shaker.ticketId, order: ticket.order });
+        ticket.status = TICKET_STATUS.AT_PICKUP;
+      }
       shaker.ticketId = null;
-      shaker.timer = 0;
-      shaker.status = 'idle';
+      shaker.timer    = 0;
+      shaker.status   = 'idle';
       return;
     }
 
-    // Load the shaker with current base+tint
-    if (shaker.status === 'idle' && player.activeTaskId != null) {
-      const ticket = this.tickets.get(player.activeTaskId);
-      if (!ticket || ticket.status !== TICKET_STATUS.LOADING_SHAKER) return;
+    if (shaker.status === 'idle' && player.sealedCans.length > 0) {
+      const ticket = this.tickets.get(player.sealedCans[0].ticketId);
+      if (!ticket || ticket.status !== TICKET_STATUS.SEALED) return;
 
-      shaker.ticketId = player.activeTaskId;
-      shaker.timer = SHAKE_DURATIONS[ticket.order.baseType];
-      shaker.status = 'shaking';
-      ticket.status = TICKET_STATUS.SHAKING;
+      const entry     = player.sealedCans.shift();
+      shaker.ticketId = entry.ticketId;
+      shaker.timer    = SHAKE_DURATIONS[ticket.order.baseType];
+      shaker.status   = 'shaking';
+      ticket.status   = TICKET_STATUS.SHAKING;
       ticket.shakerId = idx;
-
-      player.heldBase = null;
-      player.heldTint = null;
-      player.activeTaskId = null;
     }
   }
 
   _deliverPaint(player) {
-    if (player.deliveryTicketId == null) return;
-    const ticketId = player.deliveryTicketId;
-    if (!this.atPickup.includes(ticketId)) return;
+    const idx = player.mixedCans.findIndex(e => this.atPickup.includes(e.ticketId));
+    if (idx === -1) return;
 
+    const { ticketId } = player.mixedCans.splice(idx, 1)[0];
     const ticket = this.tickets.get(ticketId);
+
     this.score++;
     this.atPickup = this.atPickup.filter(id => id !== ticketId);
     this._freePickupSlots.push(ticket.pickupSlot);
     this._freePickupSlots.sort();
 
     ticket.status = TICKET_STATUS.DONE;
-    player.heldMixedCan = null;
-    player.deliveryTicketId = null;
-
-    // Fire PICKUP speech, then customer leaves
     this._requestLine(ticket, 'PICKUP');
     ticket.customer.leave();
 
     showCelebration(true);
     this._celebrationTimer = CELEBRATION_TIME;
 
-    // Clean up ticket after a brief delay (customer walking away)
     setTimeout(() => this.tickets.delete(ticketId), 4000);
   }
 
@@ -202,11 +225,11 @@ export class StoreManager {
 
     if (this.queue.length >= MAX_QUEUE) return;
 
-    const slot = this.queue.length; // next free queue slot
-    const order = generateOrder();
+    const slot     = this.queue.length;
+    const order    = generateOrder();
     const customer = new Customer();
-    const id = ++this._ticketSeq;
-    const ticket = new OrderTicket(id, customer, order);
+    const id       = ++this._ticketSeq;
+    const ticket   = new OrderTicket(id, customer, order);
     ticket.queueSlot = slot;
 
     customer.arrive(order, pickPersona(), slot);
@@ -223,9 +246,38 @@ export class StoreManager {
       if (shaker.timer === 0) {
         shaker.status = 'ready';
         const ticket = this.tickets.get(shaker.ticketId);
-        if (ticket) ticket.status = TICKET_STATUS.READY;
+        if (ticket) ticket.status = TICKET_STATUS.SHAKER_DONE;
       }
     }
+  }
+
+  // ── Private: tinting machine ─────────────────────────────────────────────
+
+  _tickTintMachine(dt) {
+    const tm = this.tintMachine;
+    tm.bangTimer = Math.max(0, tm.bangTimer - dt);
+
+    if (tm.processing) {
+      tm.processing.timer -= dt;
+      if (tm.processing.timer <= 0) {
+        const ticket = this.tickets.get(tm.processing.ticketId);
+        if (ticket) ticket.status = TICKET_STATUS.TINT_DONE;
+        tm.outputQueue.push(tm.processing.ticketId);
+        tm.processing = null;
+      }
+    }
+
+    if (!tm.processing && tm.inputQueue.length > 0 && tm.active) {
+      const ticketId = tm.inputQueue.shift();
+      const ticket   = this.tickets.get(ticketId);
+      if (ticket) {
+        const dur  = TINT_DURATIONS[ticket.order.baseType];
+        tm.processing = { ticketId, timer: dur, total: dur };
+        ticket.status = TICKET_STATUS.TINTING;
+      }
+    }
+
+    if (!tm.processing && tm.inputQueue.length === 0) tm.active = false;
   }
 
   // ── Private: prompts ─────────────────────────────────────────────────────
@@ -234,7 +286,6 @@ export class StoreManager {
     const zone = getNearbyInteractZone(player.x, player.y);
     if (!zone) { showPrompt(null); return; }
 
-    // Shaker prompts vary by shaker state
     const shakerIdx = SHAKER_ZONES.indexOf(zone);
     if (shakerIdx !== -1) {
       const shaker = this.shakers[shakerIdx];
@@ -244,67 +295,56 @@ export class StoreManager {
       }
       if (shaker.status === 'ready') {
         const ticket = this.tickets.get(shaker.ticketId);
-        const label = ticket ? `Collect for ${ticket.customer.currentOrder.customerName.split(' ').pop()}` : 'Collect Paint';
+        const label  = ticket ? `Collect for ${ticket.order.customerName.split(' ').pop()}` : 'Collect Paint';
         showPrompt(label);
         return;
       }
-      if (shaker.status === 'idle') {
-        if (player.activeTaskId != null) {
-          const ticket = this.tickets.get(player.activeTaskId);
-          if (ticket && ticket.status === TICKET_STATUS.LOADING_SHAKER) {
-            showPrompt('Load Shaker');
-            return;
-          }
-        }
-        showPrompt(null);
-        return;
-      }
+      showPrompt(player.sealedCans.length > 0 ? 'Load Shaker' : null);
+      return;
     }
 
-    // Register
     if (zone === ZONE.REGISTER) {
-      if (this.queue.length > 0 && player.activeTaskId == null && player.heldMixedCan == null) {
-        showPrompt('Take Order');
-      } else {
-        showPrompt(null);
-      }
+      showPrompt(
+        this.queue.length > 0 && player.totalHeld < MAX_CARRY && this._freePickupSlots.length > 0
+          ? 'Take Order' : null
+      );
       return;
     }
 
-    // Shelves
     if (zone === ZONE.SHELF_WHITE || zone === ZONE.SHELF_GRAY || zone === ZONE.SHELF_DEEP) {
-      if (player.activeTaskId != null) {
-        const ticket = this.tickets.get(player.activeTaskId);
-        if (ticket && ticket.status === TICKET_STATUS.FETCHING_BASE) {
-          const labels = { SHELF_WHITE: 'Grab White Base', SHELF_GRAY: 'Grab Gray Base', SHELF_DEEP: 'Grab Deep Base' };
-          showPrompt(labels[zone]);
-          return;
-        }
-      }
-      showPrompt(null);
+      const baseNeeded = { SHELF_WHITE: 'WHITE', SHELF_GRAY: 'GRAY', SHELF_DEEP: 'DEEP' }[zone];
+      const canGrab = player.cans.some(e => {
+        const t = this.tickets.get(e.ticketId);
+        return e.baseType === null && t && t.order.baseType === baseNeeded;
+      });
+      const labels = { SHELF_WHITE: 'Grab White Base', SHELF_GRAY: 'Grab Gray Base', SHELF_DEEP: 'Grab Deep Base' };
+      showPrompt(canGrab ? labels[zone] : null);
       return;
     }
 
-    // Tint station
-    if (zone === ZONE.TINT_STATION) {
-      if (player.activeTaskId != null) {
-        const ticket = this.tickets.get(player.activeTaskId);
-        if (ticket && ticket.status === TICKET_STATUS.FETCHING_TINT) {
-          showPrompt('Grab Tint');
-          return;
-        }
-      }
-      showPrompt(null);
+    if (zone === ZONE.TINT_INPUT) {
+      showPrompt(player.cans.some(e => e.baseType !== null) ? 'Load Tinter' : null);
       return;
     }
 
-    // Pickup
-    if (zone === ZONE.PICKUP) {
-      if (player.deliveryTicketId != null && this.atPickup.includes(player.deliveryTicketId)) {
-        showPrompt('Hand Off Paint');
+    if (zone === ZONE.TINT_MACHINE_BODY) {
+      const tm = this.tintMachine;
+      if (tm.processing) {
+        showPrompt(`Tinting… ${Math.ceil(tm.processing.timer)}s`, false);
         return;
       }
-      showPrompt(null);
+      showPrompt(tm.inputQueue.length > 0 && !tm.active ? 'Start Tinter' : null);
+      return;
+    }
+
+    if (zone === ZONE.TINT_OUTPUT) {
+      showPrompt(this.tintMachine.outputQueue.length > 0 ? 'Seal Can' : null);
+      return;
+    }
+
+    if (zone === ZONE.PICKUP) {
+      const canDeliver = player.mixedCans.some(e => this.atPickup.includes(e.ticketId));
+      showPrompt(canDeliver ? 'Hand Off Paint' : null);
       return;
     }
 
@@ -316,8 +356,7 @@ export class StoreManager {
   _requestLine(ticket, phase) {
     const c = ticket.customer;
     if (!c.persona || !ticket.order) return;
-    const line = generateLine(c.persona, phase, ticket.order);
-    c.speech = { text: line, state: 'shown' };
+    c.speech = { text: generateLine(c.persona, phase, ticket.order), state: 'shown' };
   }
 
   // ── Private: flashes ─────────────────────────────────────────────────────
@@ -333,7 +372,7 @@ export class StoreManager {
       .filter(f => f.timer > 0);
   }
 
-  // ── Helpers for renderer/HUD ─────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
   get allCustomers() {
     return [...this.tickets.values()].map(t => t.customer);

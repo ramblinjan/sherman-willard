@@ -1,5 +1,3 @@
-import { BASE_COLORS } from './constants.js';
-
 const el = id => document.getElementById(id);
 
 export function updateHUD(sm, player) {
@@ -24,38 +22,59 @@ function _updateQueuePanel(sm, player) {
     list.innerHTML = '<div class="queue-empty">No customers</div>';
   }
 
-  // Active task display
+  // Active tasks across all carry arrays
   const taskEl = el('active-task');
-  if (player.heldMixedCan && player.deliveryTicketId != null) {
-    const ticket = sm.tickets.get(player.deliveryTicketId);
-    const name = ticket ? ticket.order.customerName.split(' ').pop() : '?';
-    taskEl.innerHTML =
-      `<div class="task-label">DELIVERING</div>` +
-      `<div class="task-value">to ${name}</div>`;
-    taskEl.classList.remove('hidden');
-  } else if (player.activeTaskId != null) {
-    const ticket = sm.tickets.get(player.activeTaskId);
-    if (ticket) {
-      taskEl.innerHTML =
-        `<div class="task-label">WORKING</div>` +
-        `<div class="task-value">${ticket.order.colorName}</div>` +
-        `<div class="task-status">${_taskStatus(player, ticket)}</div>`;
-      taskEl.classList.remove('hidden');
-    } else {
-      taskEl.classList.add('hidden');
-    }
-  } else {
+  const allActive = [
+    ...(player.cans       || []).map(e => ({ ticketId: e.ticketId, baseType: e.baseType, stage: 'base' })),
+    ...(player.sealedCans || []).map(e => ({ ticketId: e.ticketId, stage: 'sealed' })),
+    ...(player.mixedCans  || []).map(e => ({ ticketId: e.ticketId, stage: 'deliver' })),
+  ];
+
+  if (allActive.length === 0) {
     taskEl.classList.add('hidden');
+    return;
+  }
+
+  taskEl.classList.remove('hidden');
+  taskEl.innerHTML = '<div class="task-label">WORKING</div>';
+  for (const item of allActive) {
+    const ticket = sm.tickets.get(item.ticketId);
+    if (!ticket) continue;
+    const name = ticket.order.customerName.split(' ').pop();
+    let status;
+    if (item.stage === 'base') {
+      status = item.baseType ? `${item.baseType} → tinter` : `need ${ticket.order.baseType}`;
+    } else if (item.stage === 'sealed') {
+      status = 'sealed → shaker';
+    } else {
+      status = 'delivering';
+    }
+    const row = document.createElement('div');
+    row.className = 'task-row';
+    row.innerHTML = `<span class="task-name">${name}</span><span class="task-status">${status}</span>`;
+    taskEl.appendChild(row);
   }
 }
 
-function _taskStatus(player, ticket) {
-  if (player.heldBase && player.heldTint) return 'Load shaker';
-  if (player.heldBase) return `Got ${player.heldBase} — grab tint`;
-  return `Need ${ticket.order.baseType} base`;
-}
-
 function _updateRightPanel(sm, player) {
+  // Tinter status
+  const tinterEl = el('tinter-status');
+  if (tinterEl) {
+    const tm = sm.tintMachine;
+    const hasActivity = tm.inputQueue.length > 0 || tm.processing || tm.outputQueue.length > 0;
+    if (hasActivity) {
+      const proc = tm.processing
+        ? `<span class="tint-proc">${Math.ceil(tm.processing.timer)}s</span>`
+        : `<span class="tint-idle">—</span>`;
+      tinterEl.innerHTML =
+        `<span class="tint-in">In:${tm.inputQueue.length}</span> ` +
+        `→ ${proc} → ` +
+        `<span class="tint-out">Out:${tm.outputQueue.length}</span>`;
+    } else {
+      tinterEl.innerHTML = '<span class="queue-empty">—</span>';
+    }
+  }
+
   // Shaker statuses
   const shakerList = el('shaker-list');
   shakerList.innerHTML = '';
@@ -66,17 +85,17 @@ function _updateRightPanel(sm, player) {
 
     let statusText, statusClass;
     if (shaker.status === 'idle') {
-      statusText = '—';
+      statusText  = '—';
       statusClass = 'sh-idle';
     } else if (shaker.status === 'shaking') {
       const ticket = sm.tickets.get(shaker.ticketId);
-      const name = ticket ? ticket.order.customerName.split(' ').pop() : '?';
-      statusText = `${name} ${Math.ceil(shaker.timer)}s`;
+      const name   = ticket ? ticket.order.customerName.split(' ').pop() : '?';
+      statusText  = `${name} ${Math.ceil(shaker.timer)}s`;
       statusClass = 'sh-shaking';
     } else {
       const ticket = sm.tickets.get(shaker.ticketId);
-      const name = ticket ? ticket.order.customerName.split(' ').pop() : '?';
-      statusText = `${name} READY`;
+      const name   = ticket ? ticket.order.customerName.split(' ').pop() : '?';
+      statusText  = `${name} READY`;
       statusClass = 'sh-ready';
     }
 
@@ -118,7 +137,7 @@ export function showCelebration(show) {
 const CONTAINER = 640;
 
 export function updateSpeechBubbles(customers) {
-  const bubble = el('speech-bubble');
+  const bubble  = el('speech-bubble');
   const visible = customers.filter(c => c.visible && c.speech && c.speech.state !== 'hidden');
 
   if (visible.length === 0) {
@@ -126,17 +145,16 @@ export function updateSpeechBubbles(customers) {
     return;
   }
 
-  // Prefer loading state; otherwise first in list
   const target = visible.find(c => c.speech.state === 'loading') || visible[0];
 
   bubble.classList.remove('hidden');
   bubble.classList.toggle('loading', target.speech.state === 'loading');
   el('speech-text').textContent = target.speech.state === 'loading' ? '' : target.speech.text;
 
-  const w = bubble.offsetWidth;
-  const h = bubble.offsetHeight;
-  let left = target.px - w / 2;
-  let top  = target.py - 44 - h;
+  const w    = bubble.offsetWidth;
+  const h    = bubble.offsetHeight;
+  let left   = target.px - w / 2;
+  let top    = target.py - 44 - h;
   left = Math.max(4, Math.min(CONTAINER - w - 4, left));
   top  = Math.max(4, top);
   bubble.style.left = left + 'px';

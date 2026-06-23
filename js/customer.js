@@ -2,8 +2,14 @@ import { TILE } from './constants.js';
 
 const WALK_SPEED = 3.5; // tiles per second
 
-export const QUEUE_POSITIONS   = [{ x: 4, y: 13 }, { x: 6, y: 13 }, { x: 8, y: 13 }];
-export const PICKUP_POSITIONS  = [{ x: 15, y: 13 }, { x: 14, y: 13 }, { x: 16, y: 13 }];
+export const QUEUE_POSITIONS = [
+  { x: 4, y: 13 }, { x: 6, y: 13 }, { x: 8, y: 13 },  // front row
+  { x: 4, y: 14 }, { x: 6, y: 14 }, { x: 8, y: 14 },  // back row
+];
+export const PICKUP_POSITIONS = [
+  { x: 15, y: 13 }, { x: 14, y: 13 }, { x: 16, y: 13 },
+  { x: 15, y: 14 }, { x: 14, y: 14 }, { x: 16, y: 14 },
+];
 const EXIT_TILE  = { x: 21.5, y: 13 };
 
 export class Customer {

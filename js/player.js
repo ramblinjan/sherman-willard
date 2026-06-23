@@ -6,13 +6,11 @@ const SPEED = 4.5; // tiles per second
 
 export class Player {
   constructor() {
-    this.x = 9;   // tile position (float)
+    this.x = 9;
     this.y = 9;
-    this.heldBase = null;
-    this.heldTint = null;
-    this.heldMixedCan = null;    // the order object when holding a mixed can
-    this.activeTaskId = null;    // ticket ID currently being fetched/loaded
-    this.deliveryTicketId = null; // ticket ID whose can is being carried to pickup
+    this.cans       = [];  // { ticketId, baseType } — grabbed base, going to tint machine
+    this.sealedCans = [];  // { ticketId }           — tinted+sealed, going to shaker
+    this.mixedCans  = [];  // { ticketId, order }    — mixed, going to pickup
     this.facingX = 0;
     this.facingY = 1;
   }
@@ -26,7 +24,6 @@ export class Player {
     }
 
     const speed = SPEED * dt;
-
     const nx = this.x + dx * speed;
     const ny = this.y + dy * speed;
 
@@ -48,11 +45,13 @@ export class Player {
   }
 
   clearItems() {
-    this.heldBase = null;
-    this.heldTint = null;
-    this.heldMixedCan = null;
-    this.activeTaskId = null;
-    this.deliveryTicketId = null;
+    this.cans       = [];
+    this.sealedCans = [];
+    this.mixedCans  = [];
+  }
+
+  get totalHeld() {
+    return this.cans.length + this.sealedCans.length + this.mixedCans.length;
   }
 
   get px() { return this.x * TILE; }

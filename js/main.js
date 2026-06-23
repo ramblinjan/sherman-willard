@@ -27,9 +27,7 @@ function gameLoop(timestamp) {
   elapsed += dt;
 
   // Input
-  if (consumeInteract()) {
-    sm.handleInteraction(player);
-  }
+  if (consumeInteract()) sm.handleInteraction(player);
 
   // Update
   player.update(dt);
@@ -38,7 +36,7 @@ function gameLoop(timestamp) {
 
   // Render
   clear();
-  drawTiles(sm.flashZones, sm.shakers, elapsed);
+  drawTiles(sm.flashZones, sm.shakers, sm.tintMachine, elapsed);
   drawCustomers(sm.allCustomers);
   drawPlayer(player);
 

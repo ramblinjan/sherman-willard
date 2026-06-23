@@ -11,8 +11,8 @@ body {
 
 #game-container {
   display: grid;
-  grid-template-columns: 200px 644px 150px;
-  grid-template-rows: auto 484px;
+  grid-template-columns: 200px 656px 150px;
+  grid-template-rows: auto 496px;
   grid-template-areas:
     ".     score  ."
     "left  stage  right";
@@ -24,9 +24,10 @@ body {
 #stage {
   grid-area: stage;
   position: relative;
-  width: 644px;
-  height: 484px;
-  border: 2px solid #444;
+  width: 656px;
+  height: 496px;
+  border: 8px solid #3a3a3a;
+  box-shadow: 0 0 0 1px #555, inset 0 0 10px rgba(0,0,0,0.55);
 }
 
 #game-canvas {
