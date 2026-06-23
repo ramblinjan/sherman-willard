@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Paint Store</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+
+    <!-- Score — above the play area -->
+    <div id="score-panel" class="hud-panel">
+      <span class="label">SERVED</span>
+      <span id="score">0</span>
+    </div>
+
+    <!-- Left gutter: queue + active task -->
+    <div id="left-hud">
+      <div id="queue-panel" class="hud-panel">
+        <div class="panel-title">QUEUE</div>
+        <div id="queue-list"></div>
+      </div>
+      <div id="active-task" class="hud-panel hidden"></div>
+    </div>
+
+    <!-- Center: the play area (canvas + overlays) -->
+    <div id="stage">
+      <canvas id="game-canvas" width="640" height="480"></canvas>
+
+      <div id="interact-prompt" class="hidden"><span id="prompt-key">[E]</span> <span id="prompt-text">Interact</span></div>
+      <div id="speech-bubble" class="hidden"><span id="speech-text"></span></div>
+      <div id="celebration" class="hidden">✓ Order Complete!</div>
+
+      <div id="start-screen">
+        <div class="start-box">
+          <h1>PAINT STORE</h1>
+          <p>You're the employee. Keep the customers happy.</p>
+          <div class="controls-list">
+            <div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move</div>
+            <div><kbd>E</kbd> Interact</div>
+          </div>
+          <button id="start-btn">Start Shift</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right gutter: shakers + pickup -->
+    <div id="inventory-panel" class="hud-panel">
+      <div class="panel-title">SHAKERS</div>
+      <div id="shaker-list"></div>
+      <div class="panel-title" style="margin-top: 8px">PICKUP</div>
+      <div id="pickup-list"></div>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
