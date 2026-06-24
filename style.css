@@ -11,21 +11,61 @@ body {
 
 #game-container {
   display: grid;
-  grid-template-columns: 200px 656px 150px;
-  grid-template-rows: auto 496px;
+  grid-template-columns: 220px 816px 180px;
+  grid-template-rows: auto auto 616px;
   grid-template-areas:
+    "day   day    day"
     ".     score  ."
     "left  stage  right";
   gap: 8px 12px;
   align-items: start;
 }
 
+/* Day progress banner — spans all columns */
+#day-banner {
+  grid-area: day;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+}
+
+.day-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+  white-space: nowrap;
+}
+
+#day-track {
+  flex: 1;
+  height: 14px;
+  border-radius: 7px;
+  position: relative;
+  background: linear-gradient(to right,
+    #1a1a4a 0%, #ff6b35 12%, #87ceeb 28%,
+    #4fc3f7 50%, #87ceeb 72%, #ff8c42 88%, #1a1a4a 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+#day-sun {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffe066;
+  position: absolute;
+  top: 0;
+  left: -7px;
+  box-shadow: 0 0 6px 2px rgba(255,220,50,0.6);
+}
+
 /* Center play area — overlays inside it are positioned relative to the canvas */
 #stage {
   grid-area: stage;
   position: relative;
-  width: 656px;
-  height: 496px;
+  width: 816px;
+  height: 616px;
   border: 8px solid #3a3a3a;
   box-shadow: 0 0 0 1px #555, inset 0 0 10px rgba(0,0,0,0.55);
 }
@@ -382,3 +422,50 @@ kbd {
 }
 
 #start-btn:hover { background: #ffee99; }
+
+/* End-of-day overlay */
+#day-end {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  z-index: 10;
+}
+
+.day-end-box {
+  text-align: center;
+  color: #eee;
+}
+
+.day-end-box h2 {
+  font-size: 28px;
+  letter-spacing: 0.12em;
+  color: #ffe066;
+  margin-bottom: 16px;
+}
+
+.day-end-box p {
+  color: #ccc;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+#new-day-btn {
+  background: #ffe066;
+  border: none;
+  border-radius: 4px;
+  color: #111;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  font-size: 15px;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  padding: 10px 28px;
+  margin-top: 16px;
+  pointer-events: all;
+}
+
+#new-day-btn:hover { background: #ffee99; }

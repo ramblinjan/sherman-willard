@@ -1,18 +1,18 @@
-import { initInput, consumeInteract } from './input.js';
+import { p1Input, p2Input } from './input.js';
 import { Player } from './player.js';
 import { StoreManager } from './storemanager.js';
 import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer.js';
-import { updateHUD, hideStartScreen, updateSpeechBubbles } from './hud.js';
+import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud.js';
 
 const canvas = document.getElementById('game-canvas');
 initRenderer(canvas);
-initInput();
 
-const player = new Player();
-const sm     = new StoreManager();
+let sm      = new StoreManager();
+const player = new Player(9, 9, p1Input);
+let player2  = null;
 
 // Exposed for debugging in the browser console.
-window.__game = { player, sm };
+window.__game = { get player() { return player; }, get player2() { return player2; }, get sm() { return sm; } };
 
 let lastTime = null;
 let running  = false;
@@ -26,11 +26,19 @@ function gameLoop(timestamp) {
   lastTime = timestamp;
   elapsed += dt;
 
-  // Input
-  if (consumeInteract()) sm.handleInteraction(player);
+  // P1 interact
+  if (p1Input.consumeInteract()) sm.handleInteraction(player);
+
+  // P2: join on first press, interact on subsequent presses
+  if (!player2) {
+    if (p2Input.consumeInteract()) player2 = new Player(11, 9, p2Input);
+  } else {
+    if (p2Input.consumeInteract()) sm.handleInteraction(player2);
+  }
 
   // Update
   player.update(dt);
+  if (player2) player2.update(dt);
   sm.update(dt, player);
   for (const c of sm.allCustomers) c.update(dt);
 
@@ -39,16 +47,36 @@ function gameLoop(timestamp) {
   drawTiles(sm.flashZones, sm.shakers, sm.tintMachine, elapsed);
   drawCustomers(sm.allCustomers);
   drawPlayer(player);
+  if (player2) drawPlayer(player2, '#ee8822');
 
   // HUD
   updateHUD(sm, player);
   updateSpeechBubbles(sm.allCustomers);
+
+  // Day end
+  if (sm.dayOver) {
+    running = false;
+    showDayEnd(sm);
+    return;
+  }
 
   requestAnimationFrame(gameLoop);
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
   hideStartScreen();
+  running = true;
+  requestAnimationFrame(gameLoop);
+});
+
+document.getElementById('new-day-btn').addEventListener('click', () => {
+  sm = new StoreManager();
+  player.clearItems();
+  player.x = 9; player.y = 9;
+  player2 = null;
+  lastTime = null;
+  elapsed  = 0;
+  hideDayEnd();
   running = true;
   requestAnimationFrame(gameLoop);
 });

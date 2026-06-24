@@ -1,13 +1,14 @@
 import { TILE, COLS, ROWS } from './constants.js';
 import { isWalkable } from './tilemap.js';
-import { getMoveDelta } from './input.js';
+import { p1Input } from './input.js';
 
 const SPEED = 4.5; // tiles per second
 
 export class Player {
-  constructor() {
-    this.x = 9;
-    this.y = 9;
+  constructor(x = 9, y = 9, inputHandler = p1Input) {
+    this.x = x;
+    this.y = y;
+    this.input = inputHandler;
     this.cans       = [];  // { ticketId, baseType } — grabbed base, going to tint machine
     this.sealedCans = [];  // { ticketId }           — tinted+sealed, going to shaker
     this.mixedCans  = [];  // { ticketId, order }    — mixed, going to pickup
@@ -16,7 +17,7 @@ export class Player {
   }
 
   update(dt) {
-    const { dx, dy } = getMoveDelta();
+    const { dx, dy } = this.input.getMoveDelta();
 
     if (dx !== 0 || dy !== 0) {
       this.facingX = dx;

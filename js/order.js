@@ -17,7 +17,7 @@ const COLOR_NAMES = [
   'Decisive Red', 'Regrettable Burgundy', 'Modest Blush', 'Midnight Shift',
   'The Dark at the End', 'Obsidian Tuesday',
 ];
-const GALLON_OPTS = [1, 2, 5];
+const CAN_COUNT_OPTS = [1, 2, 3];
 
 let nextId = 1;
 
@@ -35,6 +35,6 @@ export function generateOrder() {
     baseType:     pick(BASE_TYPES),
     tintCode:     `${hue}-${intensity}`,
     tintHue:      hue,
-    gallons:      pick(GALLON_OPTS),
+    canCount:     pick(CAN_COUNT_OPTS),
   };
 }

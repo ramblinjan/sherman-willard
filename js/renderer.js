@@ -1,6 +1,8 @@
 import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants.js';
 import { MAP, INTERACT_POINTS, isWalkable } from './tilemap.js';
 
+const S = TILE / 32; // scale factor relative to original 32px tile size
+
 // 2-wide shakers at cols 3, 5, 7 (shifted right 2)
 const SHAKERS = [
   { col: 3, label: 'A' },
@@ -47,7 +49,7 @@ export function drawTiles(flashZones, shakersState, tintMachine, elapsed) {
   }
 }
 
-// ── Hot zone highlights ───────────────────────────────────────────────────
+// ── Hot zone highlights (disabled — implemented for future use) ────────────
 
 const ZONE_COLORS = {
   [ZONE.REGISTER]:          [255, 215,  50],
@@ -90,40 +92,40 @@ function _drawShelfLabels() {
 }
 
 function _drawShelfBlock(col, row, w, h, label, bg, textColor) {
-  const x  = col * TILE + 2;
-  const y  = row * TILE + 2;
-  const pw = w * TILE - 4;
-  const ph = h * TILE - 4;
+  const x  = col * TILE + 2 * S;
+  const y  = row * TILE + 2 * S;
+  const pw = w * TILE - 4 * S;
+  const ph = h * TILE - 4 * S;
 
   ctx.fillStyle = bg;
-  _roundRect(x, y, pw, ph, 4);
+  _roundRect(x, y, pw, ph, 4 * S);
   ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,0.25)';
   ctx.lineWidth = 1.5;
-  _roundRect(x, y, pw, ph, 4);
+  _roundRect(x, y, pw, ph, 4 * S);
   ctx.stroke();
   ctx.lineWidth = 1;
 
-  const canW = 14, canH = 18;
-  const cansPerRow = Math.floor(pw / (canW + 6));
+  const canW = 14 * S, canH = 18 * S;
+  const cansPerRow = Math.floor(pw / (canW + 6 * S));
   for (let r = 0; r < 2; r++) {
     for (let c = 0; c < cansPerRow; c++) {
-      const cx = x + 8 + c * (canW + 6);
-      const cy = y + 8 + r * (canH + 6);
+      const cx = x + 8 * S + c * (canW + 6 * S);
+      const cy = y + 8 * S + r * (canH + 6 * S);
       ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      _roundRect(cx, cy, canW, canH, 2);
+      _roundRect(cx, cy, canW, canH, 2 * S);
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-      _roundRect(cx, cy, canW, canH, 2);
+      _roundRect(cx, cy, canW, canH, 2 * S);
       ctx.stroke();
     }
   }
 
   ctx.fillStyle = textColor;
-  ctx.font = 'bold 10px Courier New';
+  ctx.font = `bold ${Math.round(10 * S)}px Courier New`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.fillText(label, x + pw / 2, y + ph - 4);
+  ctx.fillText(label, x + pw / 2, y + ph - 4 * S);
 }
 
 // ── Tinting machine ───────────────────────────────────────────────────────
@@ -131,94 +133,90 @@ function _drawShelfBlock(col, row, w, h, label, bg, textColor) {
 function _drawTintingMachine(tintState, elapsed) {
   const tm = tintState || { inputQueue: [], processing: null, outputQueue: [], active: false };
 
-  // Machine sits at rows 6-7, cols 10-16 (7 wide × 2 tall), top against the wall at row 5.
-  // Flipped: SEAL on left (cols 10-11), body center (cols 12-14), LOAD on right (cols 15-16).
-  // Player operates from row 8 below.
-
   const ROW = 6;
 
   // SEAL / OUTPUT HAMMER TABLE — cols 10-11 (left)
   {
-    const x  = 10 * TILE + 2;
-    const y  = ROW * TILE + 2;
-    const pw = 2 * TILE - 4;
-    const ph = 2 * TILE - 4;
+    const x  = 10 * TILE + 2 * S;
+    const y  = ROW * TILE + 2 * S;
+    const pw = 2 * TILE - 4 * S;
+    const ph = 2 * TILE - 4 * S;
 
     ctx.fillStyle = '#2a2040';
-    _roundRect(x, y, pw, ph, 4);
+    _roundRect(x, y, pw, ph, 4 * S);
     ctx.fill();
     ctx.strokeStyle = '#554477';
     ctx.lineWidth = 1.5;
-    _roundRect(x, y, pw, ph, 4);
+    _roundRect(x, y, pw, ph, 4 * S);
     ctx.stroke();
     ctx.lineWidth = 1;
 
     // Hammer icon
     const hx = x + pw / 2;
-    const hy = y + 8;
+    const hy = y + 8 * S;
     ctx.fillStyle = '#8877aa';
-    ctx.fillRect(hx - 10, hy, 20, 7);
-    ctx.fillRect(hx - 2,  hy + 7, 4, 14);
+    ctx.fillRect(hx - 10 * S, hy, 20 * S, 7 * S);
+    ctx.fillRect(hx - 2 * S,  hy + 7 * S, 4 * S, 14 * S);
 
     // Sealed cans waiting (up to 3, side by side)
     const count = Math.min(tm.outputQueue.length, 3);
     for (let i = 0; i < count; i++) {
-      const cx2 = x + 6 + i * 17;
+      const cx2 = x + 6 * S + i * 17 * S;
       ctx.fillStyle = '#8866aa';
-      _roundRect(cx2, y + ph - 22, 12, 18, 2);
+      _roundRect(cx2, y + ph - 22 * S, 12 * S, 18 * S, 2 * S);
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      _roundRect(cx2, y + ph - 22, 12, 18, 2);
+      _roundRect(cx2, y + ph - 22 * S, 12 * S, 18 * S, 2 * S);
       ctx.stroke();
     }
 
     ctx.fillStyle = '#9988cc';
-    ctx.font = 'bold 8px Courier New';
+    ctx.font = `bold ${Math.round(8 * S)}px Courier New`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('SEAL', x + pw / 2, y + ph - 2);
+    ctx.fillText('SEAL', x + pw / 2, y + ph - 2 * S);
   }
 
   // MACHINE BODY — cols 12-14 (center)
   {
-    const x  = 12 * TILE + 2;
-    const y  = ROW * TILE + 2;
-    const pw = 3 * TILE - 4;
-    const ph = 2 * TILE - 4;
+    const x  = 12 * TILE + 2 * S;
+    const y  = ROW * TILE + 2 * S;
+    const pw = 3 * TILE - 4 * S;
+    const ph = 2 * TILE - 4 * S;
 
     ctx.fillStyle = '#1a1030';
-    _roundRect(x, y, pw, ph, 4);
+    _roundRect(x, y, pw, ph, 4 * S);
     ctx.fill();
     ctx.strokeStyle = '#332255';
     ctx.lineWidth = 1.5;
-    _roundRect(x, y, pw, ph, 4);
+    _roundRect(x, y, pw, ph, 4 * S);
     ctx.stroke();
     ctx.lineWidth = 1;
 
     const cx = x + pw / 2;
-    const cy = y + ph / 2 - 4;
-    const r  = 18;
+    const cy = y + ph / 2 - 4 * S;
+    const r  = 18 * S;
 
     if (tm.processing) {
       const progress = 1 - (tm.processing.timer / tm.processing.total);
-      const jitter   = Math.sin((elapsed ?? 0) * 15) * 1.5;
+      const jitter   = Math.sin((elapsed ?? 0) * 15) * 1.5 * S;
 
       ctx.fillStyle = '#888';
-      _roundRect(cx - 6 + jitter, cy - 9, 12, 18, 2);
+      _roundRect(cx - 6 * S + jitter, cy - 9 * S, 12 * S, 18 * S, 2 * S);
       ctx.fill();
 
       ctx.strokeStyle = '#ffe066';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3 * S;
       ctx.beginPath();
       ctx.arc(cx + jitter, cy, r, -Math.PI / 2, -Math.PI / 2 + progress * 2 * Math.PI);
       ctx.stroke();
       ctx.lineWidth = 1;
 
       ctx.fillStyle = '#ffe066';
-      ctx.font = 'bold 9px Courier New';
+      ctx.font = `bold ${Math.round(9 * S)}px Courier New`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(`${Math.ceil(tm.processing.timer)}s`, cx, cy + r + 2);
+      ctx.fillText(`${Math.ceil(tm.processing.timer)}s`, cx, cy + r + 2 * S);
     } else {
       ctx.strokeStyle = tm.active ? '#55cc88' : '#443366';
       ctx.lineWidth = 2;
@@ -228,32 +226,32 @@ function _drawTintingMachine(tintState, elapsed) {
       ctx.lineWidth = 1;
 
       ctx.fillStyle = tm.active ? '#55cc88' : '#554477';
-      ctx.font = 'bold 9px Courier New';
+      ctx.font = `bold ${Math.round(9 * S)}px Courier New`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(tm.active ? 'ON' : '—', cx, cy);
     }
 
     ctx.fillStyle = '#776699';
-    ctx.font = 'bold 8px Courier New';
+    ctx.font = `bold ${Math.round(8 * S)}px Courier New`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('TINTER', x + pw / 2, y + ph - 2);
+    ctx.fillText('TINTER', x + pw / 2, y + ph - 2 * S);
   }
 
   // LOAD / INPUT ROLLER RACK — cols 15-16 (right)
   {
-    const x  = 15 * TILE + 2;
-    const y  = ROW * TILE + 2;
-    const pw = 2 * TILE - 4;
-    const ph = 2 * TILE - 4;
+    const x  = 15 * TILE + 2 * S;
+    const y  = ROW * TILE + 2 * S;
+    const pw = 2 * TILE - 4 * S;
+    const ph = 2 * TILE - 4 * S;
 
     ctx.fillStyle = '#2a2040';
-    _roundRect(x, y, pw, ph, 4);
+    _roundRect(x, y, pw, ph, 4 * S);
     ctx.fill();
     ctx.strokeStyle = '#554477';
     ctx.lineWidth = 1.5;
-    _roundRect(x, y, pw, ph, 4);
+    _roundRect(x, y, pw, ph, 4 * S);
     ctx.stroke();
     ctx.lineWidth = 1;
 
@@ -262,46 +260,45 @@ function _drawTintingMachine(tintState, elapsed) {
     for (let i = 1; i < 4; i++) {
       const rx = x + i * (pw / 4);
       ctx.beginPath();
-      ctx.moveTo(rx, y + 4);
-      ctx.lineTo(rx, y + ph - 4);
+      ctx.moveTo(rx, y + 4 * S);
+      ctx.lineTo(rx, y + ph - 4 * S);
       ctx.stroke();
     }
 
     // Mini cans queued on the roller
     const count = Math.min(tm.inputQueue.length, 3);
     for (let i = 0; i < count; i++) {
-      const cx2 = x + 6 + i * 17;
+      const cx2 = x + 6 * S + i * 17 * S;
       ctx.fillStyle = '#999';
-      _roundRect(cx2, y + ph / 2 - 9, 12, 18, 2);
+      _roundRect(cx2, y + ph / 2 - 9 * S, 12 * S, 18 * S, 2 * S);
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-      _roundRect(cx2, y + ph / 2 - 9, 12, 18, 2);
+      _roundRect(cx2, y + ph / 2 - 9 * S, 12 * S, 18 * S, 2 * S);
       ctx.stroke();
     }
 
     ctx.fillStyle = '#9988cc';
-    ctx.font = 'bold 8px Courier New';
+    ctx.font = `bold ${Math.round(8 * S)}px Courier New`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('LOAD', x + pw / 2, y + ph - 2);
+    ctx.fillText('LOAD', x + pw / 2, y + ph - 2 * S);
   }
 }
 
 function _drawBangOverlay(bangTimer) {
   const alpha = bangTimer / 0.6;
-  // Spread across the full machine (cols 10-16, rows 6-7)
   const machineCenter = (10 + 3.5) * TILE;
-  const my = 6 * TILE + TILE; // vertical center
+  const my = 6 * TILE + TILE;
 
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.fillStyle = '#ff2222';
-  ctx.font = 'bold 18px Courier New';
+  ctx.font = `bold ${Math.round(18 * S)}px Courier New`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('BANG', machineCenter - 56, my);
-  ctx.fillText('BANG', machineCenter,      my);
-  ctx.fillText('BANG', machineCenter + 56, my);
+  ctx.fillText('BANG', machineCenter - 56 * S, my);
+  ctx.fillText('BANG', machineCenter,           my);
+  ctx.fillText('BANG', machineCenter + 56 * S,  my);
   ctx.restore();
 }
 
@@ -310,10 +307,10 @@ function _drawBangOverlay(bangTimer) {
 function _drawShakerMachines(shakersState, elapsed) {
   SHAKERS.forEach(({ col, label }, idx) => {
     const state = shakersState ? shakersState[idx] : { status: 'idle', timer: 0 };
-    const x  = col * TILE + 2;
-    const y  = 6 * TILE + 2;
-    const pw = 2 * TILE - 4;
-    const ph = 2 * TILE - 4;
+    const x  = col * TILE + 2 * S;
+    const y  = 6 * TILE + 2 * S;
+    const pw = 2 * TILE - 4 * S;
+    const ph = 2 * TILE - 4 * S;
 
     ctx.save();
 
@@ -321,7 +318,7 @@ function _drawShakerMachines(shakersState, elapsed) {
     let bgColor, borderColor, textColor, labelText;
 
     if (state.status === 'shaking') {
-      offsetX     = Math.sin((elapsed ?? 0) * 20) * 2.5;
+      offsetX     = Math.sin((elapsed ?? 0) * 20) * 2.5 * S;
       bgColor     = '#3a5070';
       borderColor = '#ffe066';
       textColor   = '#ffe066';
@@ -339,21 +336,21 @@ function _drawShakerMachines(shakersState, elapsed) {
     }
 
     ctx.fillStyle = bgColor;
-    _roundRect(x + offsetX, y, pw, ph, 5);
+    _roundRect(x + offsetX, y, pw, ph, 5 * S);
     ctx.fill();
 
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = state.status !== 'idle' ? 2.5 : 1.5;
-    _roundRect(x + offsetX, y, pw, ph, 5);
+    _roundRect(x + offsetX, y, pw, ph, 5 * S);
     ctx.stroke();
     ctx.lineWidth = 1;
 
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    _roundRect(x + offsetX + 6, y + 6, pw - 12, ph - 12, 3);
+    _roundRect(x + offsetX + 6 * S, y + 6 * S, pw - 12 * S, ph - 12 * S, 3 * S);
     ctx.fill();
 
     ctx.fillStyle = textColor;
-    ctx.font = `bold ${state.status === 'idle' ? 10 : 9}px Courier New`;
+    ctx.font = `bold ${Math.round((state.status === 'idle' ? 10 : 9) * S)}px Courier New`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(labelText, x + offsetX + pw / 2, y + ph / 2);
@@ -371,7 +368,7 @@ function _drawCounter() {
   ctx.strokeRect(0, 12 * TILE, COLS * TILE, TILE);
 
   ctx.fillStyle = '#ffe066';
-  ctx.font = 'bold 9px Courier New';
+  ctx.font = `bold ${Math.round(9 * S)}px Courier New`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('REGISTER', 4 * TILE, 12 * TILE + TILE / 2);
@@ -409,11 +406,11 @@ function _drawOneCustomer(customer) {
   const py = customer.py;
 
   ctx.fillStyle = '#ee8833';
-  ctx.fillRect(px - 10, py - 14, 20, 24);
+  ctx.fillRect(px - 10 * S, py - 14 * S, 20 * S, 24 * S);
 
   ctx.fillStyle = '#ffddbb';
   ctx.beginPath();
-  ctx.arc(px, py - 18, 8, 0, Math.PI * 2);
+  ctx.arc(px, py - 18 * S, 8 * S, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#cc9966';
   ctx.lineWidth = 1;
@@ -421,29 +418,29 @@ function _drawOneCustomer(customer) {
 
   if (customer.state === 'WAITING' && customer.currentOrder) {
     const name = customer.currentOrder.customerName.split(' ').pop();
-    ctx.font = '9px Courier New';
-    const tw = ctx.measureText(name).width + 6;
+    ctx.font = `${Math.round(9 * S)}px Courier New`;
+    const tw = ctx.measureText(name).width + 6 * S;
     ctx.fillStyle = 'rgba(10,10,20,0.75)';
-    ctx.fillRect(px - tw / 2, py - 34, tw, 13);
+    ctx.fillRect(px - tw / 2, py - 34 * S, tw, 13 * S);
     ctx.fillStyle = '#ffe';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(name, px, py - 32);
+    ctx.fillText(name, px, py - 32 * S);
   }
 }
 
 // ── Player ────────────────────────────────────────────────────────────────
 
-export function drawPlayer(player) {
+export function drawPlayer(player, bodyColor = '#3399ee') {
   const px = player.px;
   const py = player.py;
 
-  ctx.fillStyle = '#3399ee';
-  ctx.fillRect(px - 10, py - 14, 20, 24);
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(px - 10 * S, py - 14 * S, 20 * S, 24 * S);
 
   ctx.fillStyle = '#ffcc99';
   ctx.beginPath();
-  ctx.arc(px, py - 18, 8, 0, Math.PI * 2);
+  ctx.arc(px, py - 18 * S, 8 * S, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = '#cc9966';
   ctx.lineWidth = 1;
@@ -457,12 +454,12 @@ export function drawPlayer(player) {
   ];
 
   items.forEach((item, i) => {
-    const bx = px + 8;
-    const by = py - 8 + i * 8;
+    const bx = px + 8 * S;
+    const by = py - 8 * S + i * 8 * S;
     ctx.fillStyle = item.color;
-    ctx.fillRect(bx, by, 10, 6);
+    ctx.fillRect(bx, by, 10 * S, 6 * S);
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.strokeRect(bx, by, 10, 6);
+    ctx.strokeRect(bx, by, 10 * S, 6 * S);
   });
 }
 

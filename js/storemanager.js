@@ -1,4 +1,4 @@
-import { ZONE, SHAKE_DURATIONS, TINT_DURATIONS } from './constants.js';
+import { ZONE, SHAKE_DURATIONS, TINT_DURATIONS, DAY_DURATION } from './constants.js';
 import { getNearbyInteractZone } from './tilemap.js';
 import { generateOrder } from './order.js';
 import { Customer } from './customer.js';
@@ -30,11 +30,14 @@ export class StoreManager {
       active:      false,
       bangTimer:   0,
     };
-    this.score      = 0;
-    this.flashZones = [];
+    this.score        = 0;
+    this.gallonsSold  = 0;
+    this.flashZones   = [];
+    this.dayTimer     = 0;
+    this.dayOver      = false;
 
-    this._ticketSeq       = 0;
-    this._spawnTimer      = 1.0;
+    this._ticketSeq        = 0;
+    this._spawnTimer       = 1.0;
     this._celebrationTimer = 0;
     this._freePickupSlots  = [0, 1, 2, 3, 4, 5];
   }
@@ -42,10 +45,15 @@ export class StoreManager {
   // ── Main update ──────────────────────────────────────────────────────────
 
   update(dt, player) {
+    if (!this.dayOver) {
+      this.dayTimer += dt;
+      if (this.dayTimer >= DAY_DURATION) this.dayOver = true;
+    }
+
     this._updateFlashes(dt);
     this._tickShakers(dt);
     this._tickTintMachine(dt);
-    this._tickSpawn(dt);
+    if (!this.dayOver) this._tickSpawn(dt);
 
     if (this._celebrationTimer > 0) {
       this._celebrationTimer -= dt;
@@ -106,16 +114,23 @@ export class StoreManager {
 
   _takeOrder(player) {
     if (this.queue.length === 0) return;
-    if (player.totalHeld >= MAX_CARRY) return;
     if (this._freePickupSlots.length === 0) return;
 
-    const ticketId = this.queue.shift();
+    const ticketId = this.queue[0];
     const ticket   = this.tickets.get(ticketId);
-    ticket.status  = TICKET_STATUS.BASE_GRABBED;
-    player.cans.push({ ticketId, baseType: null });
+    const canCount = ticket.order.canCount;
 
-    const pickupSlot   = this._freePickupSlots.shift();
-    ticket.pickupSlot  = pickupSlot;
+    if (player.totalHeld + canCount > MAX_CARRY) return;
+
+    this.queue.shift();
+    ticket.status = TICKET_STATUS.BASE_GRABBED;
+
+    for (let i = 0; i < canCount; i++) {
+      player.cans.push({ ticketId, baseType: null });
+    }
+
+    const pickupSlot  = this._freePickupSlots.shift();
+    ticket.pickupSlot = pickupSlot;
     this.atPickup.push(ticketId);
     ticket.customer.moveToPickup(pickupSlot);
 
@@ -133,7 +148,7 @@ export class StoreManager {
     if (entry) {
       entry.baseType = grabbed;
     } else if (player.cans.some(e => e.baseType === null)) {
-      this._addFlash(zone); // unfilled slots, but wrong shelf
+      this._addFlash(zone);
     }
   }
 
@@ -157,7 +172,7 @@ export class StoreManager {
   _grabTintOutput(player) {
     const tm = this.tintMachine;
     if (tm.outputQueue.length === 0) return;
-    if (player.sealedCans.length >= MAX_CARRY) return;
+    if (player.totalHeld >= MAX_CARRY) return;
 
     const ticketId = tm.outputQueue.shift();
     const ticket   = this.tickets.get(ticketId);
@@ -182,10 +197,10 @@ export class StoreManager {
     }
 
     if (shaker.status === 'idle' && player.sealedCans.length > 0) {
-      const ticket = this.tickets.get(player.sealedCans[0].ticketId);
-      if (!ticket || ticket.status !== TICKET_STATUS.SEALED) return;
+      const entry  = player.sealedCans.shift();
+      const ticket = this.tickets.get(entry.ticketId);
+      if (!ticket) return;
 
-      const entry     = player.sealedCans.shift();
       shaker.ticketId = entry.ticketId;
       shaker.timer    = SHAKE_DURATIONS[ticket.order.baseType];
       shaker.status   = 'shaking';
@@ -201,19 +216,25 @@ export class StoreManager {
     const { ticketId } = player.mixedCans.splice(idx, 1)[0];
     const ticket = this.tickets.get(ticketId);
 
-    this.score++;
-    this.atPickup = this.atPickup.filter(id => id !== ticketId);
-    this._freePickupSlots.push(ticket.pickupSlot);
-    this._freePickupSlots.sort();
+    ticket.cansDelivered++;
 
-    ticket.status = TICKET_STATUS.DONE;
-    this._requestLine(ticket, 'PICKUP');
-    ticket.customer.leave();
+    if (ticket.isComplete) {
+      this.score++;
+      this.gallonsSold += ticket.order.canCount;
+      this.atPickup = this.atPickup.filter(id => id !== ticketId);
+      this._freePickupSlots.push(ticket.pickupSlot);
+      this._freePickupSlots.sort();
 
-    showCelebration(true);
-    this._celebrationTimer = CELEBRATION_TIME;
+      ticket.status = TICKET_STATUS.DONE;
+      this._requestLine(ticket, 'PICKUP');
+      ticket.customer.leave();
 
-    setTimeout(() => this.tickets.delete(ticketId), 4000);
+      showCelebration(true);
+      this._celebrationTimer = CELEBRATION_TIME;
+
+      setTimeout(() => this.tickets.delete(ticketId), 4000);
+    }
+    // else: customer stays at pickup, ticket stays in atPickup until all cans delivered
   }
 
   // ── Private: spawning ────────────────────────────────────────────────────
@@ -304,10 +325,15 @@ export class StoreManager {
     }
 
     if (zone === ZONE.REGISTER) {
-      showPrompt(
-        this.queue.length > 0 && player.totalHeld < MAX_CARRY && this._freePickupSlots.length > 0
-          ? 'Take Order' : null
-      );
+      if (this.queue.length === 0 || this._freePickupSlots.length === 0) {
+        showPrompt(null); return;
+      }
+      const nextTicket = this.tickets.get(this.queue[0]);
+      const canCount   = nextTicket?.order.canCount ?? 1;
+      if (player.totalHeld + canCount > MAX_CARRY) {
+        showPrompt(null); return;
+      }
+      showPrompt(canCount > 1 ? `Take Order (×${canCount})` : 'Take Order');
       return;
     }
 

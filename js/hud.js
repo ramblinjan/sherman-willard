@@ -1,9 +1,19 @@
+import { TILE, COLS, DAY_DURATION } from './constants.js';
+
 const el = id => document.getElementById(id);
+const CONTAINER = COLS * TILE; // canvas width in px
 
 export function updateHUD(sm, player) {
   el('score').textContent = sm.score;
+  _updateDayBanner(sm);
   _updateQueuePanel(sm, player);
   _updateRightPanel(sm, player);
+}
+
+function _updateDayBanner(sm) {
+  const progress = Math.min(sm.dayTimer / DAY_DURATION, 1);
+  const sun = el('day-sun');
+  if (sun) sun.style.left = `calc(${progress * 100}% - 7px)`;
 }
 
 function _updateQueuePanel(sm, player) {
@@ -13,8 +23,9 @@ function _updateQueuePanel(sm, player) {
   sm.queueTickets.forEach(t => {
     const div = document.createElement('div');
     div.className = 'queue-item';
+    const canLabel = t.order.canCount > 1 ? ` ×${t.order.canCount}` : '';
     div.innerHTML =
-      `<span class="qi-name">${t.order.customerName.split(' ').pop()}</span>` +
+      `<span class="qi-name">${t.order.customerName.split(' ').pop()}${canLabel}</span>` +
       `<span class="qi-color">${t.order.colorName}</span>`;
     list.appendChild(div);
   });
@@ -105,18 +116,32 @@ function _updateRightPanel(sm, player) {
     shakerList.appendChild(div);
   });
 
-  // Pickup queue
+  // Pickup queue — show can progress for multi-can orders
   const pickupList = el('pickup-list');
   pickupList.innerHTML = '';
   sm.pickupTickets.forEach(t => {
     const div = document.createElement('div');
     div.className = 'pickup-item';
-    div.textContent = t.order.customerName.split(' ').pop();
+    const name = t.order.customerName.split(' ').pop();
+    const progress = t.cansNeeded > 1
+      ? ` — ${t.cansDelivered}/${t.cansNeeded}`
+      : '';
+    div.textContent = name + progress;
     pickupList.appendChild(div);
   });
   if (sm.atPickup.length === 0) {
     pickupList.innerHTML = '<div class="queue-empty">—</div>';
   }
+}
+
+export function showDayEnd(sm) {
+  el('day-stat-customers').textContent = `Customers served: ${sm.score}`;
+  el('day-stat-gallons').textContent   = `Gallons sold: ${sm.gallonsSold}`;
+  el('day-end').classList.remove('hidden');
+}
+
+export function hideDayEnd() {
+  el('day-end').classList.add('hidden');
 }
 
 export function showPrompt(text, showKey = true) {
@@ -133,8 +158,6 @@ export function showPrompt(text, showKey = true) {
 export function showCelebration(show) {
   el('celebration').classList.toggle('hidden', !show);
 }
-
-const CONTAINER = 640;
 
 export function updateSpeechBubbles(customers) {
   const bubble  = el('speech-bubble');
@@ -154,7 +177,7 @@ export function updateSpeechBubbles(customers) {
   const w    = bubble.offsetWidth;
   const h    = bubble.offsetHeight;
   let left   = target.px - w / 2;
-  let top    = target.py - 44 - h;
+  let top    = target.py - 44 * (TILE / 32) - h;
   left = Math.max(4, Math.min(CONTAINER - w - 4, left));
   top  = Math.max(4, top);
   bubble.style.left = left + 'px';

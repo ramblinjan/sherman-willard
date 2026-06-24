@@ -17,8 +17,12 @@ export class OrderTicket {
     this.customer = customer;
     this.order = order;
     this.status = TICKET_STATUS.QUEUED;
-    this.queueSlot = null;  // 0..2
-    this.pickupSlot = null; // 0..2
-    this.shakerId = null;   // 0..2
+    this.queueSlot  = null;  // 0..5
+    this.pickupSlot = null;  // 0..5
+    this.shakerId   = null;  // 0..2
+    this.cansDelivered = 0;
   }
+
+  get cansNeeded() { return this.order.canCount; }
+  get isComplete()  { return this.cansDelivered >= this.cansNeeded; }
 }

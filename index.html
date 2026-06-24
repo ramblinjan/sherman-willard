@@ -8,6 +8,13 @@
 <body>
   <div id="game-container">
 
+    <!-- Day progress banner — spans all columns -->
+    <div id="day-banner" class="hud-panel">
+      <span class="day-label">DAWN</span>
+      <div id="day-track"><div id="day-sun"></div></div>
+      <span class="day-label">DUSK</span>
+    </div>
+
     <!-- Score — above the play area -->
     <div id="score-panel" class="hud-panel">
       <span class="label">SERVED</span>
@@ -25,19 +32,29 @@
 
     <!-- Center: the play area (canvas + overlays) -->
     <div id="stage">
-      <canvas id="game-canvas" width="640" height="480"></canvas>
+      <canvas id="game-canvas" width="800" height="600"></canvas>
 
       <div id="interact-prompt" class="hidden"><span id="prompt-key">[E]</span> <span id="prompt-text">Interact</span></div>
       <div id="speech-bubble" class="hidden"><span id="speech-text"></span></div>
       <div id="celebration" class="hidden">✓ Order Complete!</div>
+
+      <!-- End-of-day stats overlay -->
+      <div id="day-end" class="hidden">
+        <div class="day-end-box">
+          <h2>End of Shift</h2>
+          <p id="day-stat-customers"></p>
+          <p id="day-stat-gallons"></p>
+          <button id="new-day-btn">New Shift</button>
+        </div>
+      </div>
 
       <div id="start-screen">
         <div class="start-box">
           <h1>PAINT STORE</h1>
           <p>You're the employee. Keep the customers happy.</p>
           <div class="controls-list">
-            <div><kbd>WASD</kbd> / <kbd>↑↓←→</kbd> Move</div>
-            <div><kbd>E</kbd> Interact</div>
+            <div><kbd>WASD</kbd> + <kbd>E</kbd> — Player 1</div>
+            <div><kbd>↑↓←→</kbd> + <kbd>/</kbd> — Player 2 (press / to join)</div>
           </div>
           <button id="start-btn">Start Shift</button>
         </div>
