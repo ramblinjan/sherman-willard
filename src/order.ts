@@ -1,5 +1,5 @@
-import { BASE_TYPES, HUE_CODES } from './constants.js';
-import type { Order } from './types.js';
+import { BASE_TYPES, HUE_CODES } from './constants';
+import type { Order } from './types';
 
 const TITLES    = ['Mrs.', 'Mr.', 'Dr.', 'Ms.', 'Mx.'];
 const LAST_NAMES = [

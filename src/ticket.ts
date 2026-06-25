@@ -1,5 +1,5 @@
-import type { Order } from './types.js';
-import type { Customer } from './customer.js';
+import type { Order } from './types';
+import type { Customer } from './customer';
 
 export const TICKET_STATUS = {
   QUEUED:       'QUEUED',        // waiting at register

@@ -1,10 +1,10 @@
-import { ZONE, SHAKE_DURATIONS, TINT_DURATIONS, DAY_DURATION } from './constants.js';
-import { getNearbyInteractZone } from './tilemap.js';
-import { generateOrder } from './order.js';
-import { Customer } from './customer.js';
-import { OrderTicket, TICKET_STATUS } from './ticket.js';
-import { showPrompt, showCelebration } from './hud.js';
-import { pickCustomer } from './dialogue.js';
+import { ZONE, SHAKE_DURATIONS, TINT_DURATIONS, DAY_DURATION } from './constants';
+import { getNearbyInteractZone } from './tilemap';
+import { generateOrder } from './order';
+import { Customer } from './customer';
+import { OrderTicket, TICKET_STATUS } from './ticket';
+import { showPrompt, showCelebration } from './hud';
+import { pickCustomer } from './dialogue';
 
 const MAX_QUEUE      = 6;
 const MAX_CARRY      = 3;

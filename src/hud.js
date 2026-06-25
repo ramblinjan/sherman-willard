@@ -1,4 +1,4 @@
-import { TILE, COLS, DAY_DURATION } from './constants.js';
+import { TILE, COLS, DAY_DURATION } from './constants';
 
 const el = id => document.getElementById(id);
 const CONTAINER = COLS * TILE; // canvas width in px

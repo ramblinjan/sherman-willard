@@ -1,4 +1,4 @@
-import type { BaseType, HueCode } from './types.js';
+import type { BaseType, HueCode } from './types';
 
 export const TILE = 40;
 export const DAY_DURATION = 360; // seconds per shift

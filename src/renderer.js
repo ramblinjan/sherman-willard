@@ -1,5 +1,5 @@
-import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants.js';
-import { MAP, RUGS, INTERACT_POINTS, isWalkable } from './tilemap.js';
+import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants';
+import { MAP, RUGS, INTERACT_POINTS, isWalkable } from './tilemap';
 
 const S = TILE / 32; // scale factor relative to original 32px tile size
 

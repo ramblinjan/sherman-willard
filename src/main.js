@@ -1,8 +1,8 @@
-import { p1Input, p2Input } from './input.js';
-import { Player } from './player.js';
-import { StoreManager } from './storemanager.js';
-import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer.js';
-import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud.js';
+import { p1Input, p2Input } from './input';
+import { Player } from './player';
+import { StoreManager } from './storemanager';
+import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer';
+import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud';
 
 const canvas = document.getElementById('game-canvas');
 initRenderer(canvas);
