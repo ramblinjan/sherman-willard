@@ -3,22 +3,33 @@ import { Player } from './player';
 import { StoreManager } from './storemanager';
 import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer';
 import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud';
+import type { Customer } from './customer';
 
-const canvas = document.getElementById('game-canvas');
+declare global {
+  interface Window {
+    __game: {
+      readonly player: Player;
+      readonly player2: Player | null;
+      readonly sm: StoreManager;
+    };
+  }
+}
+
+const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 initRenderer(canvas);
 
-let sm      = new StoreManager();
+let sm       = new StoreManager();
 const player = new Player(9, 9, p1Input);
-let player2  = null;
+let player2: Player | null = null;
 
 // Exposed for debugging in the browser console.
 window.__game = { get player() { return player; }, get player2() { return player2; }, get sm() { return sm; } };
 
-let lastTime = null;
+let lastTime: number | null = null;
 let running  = false;
 let elapsed  = 0;
 
-function gameLoop(timestamp) {
+function gameLoop(timestamp: number): void {
   if (!running) return;
 
   if (lastTime === null) lastTime = timestamp;
@@ -43,7 +54,7 @@ function gameLoop(timestamp) {
   for (const c of sm.allCustomers) c.update(dt);
 
   // Build remaining-cans map for customer sprite labels
-  const customerRemaining = new Map();
+  const customerRemaining = new Map<Customer, number>();
   for (const t of sm.tickets.values()) {
     customerRemaining.set(t.customer, t.cansNeeded - t.cansDelivered);
   }
@@ -71,13 +82,13 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-document.getElementById('start-btn').addEventListener('click', () => {
+document.getElementById('start-btn')!.addEventListener('click', () => {
   hideStartScreen();
   running = true;
   requestAnimationFrame(gameLoop);
 });
 
-document.getElementById('new-day-btn').addEventListener('click', () => {
+document.getElementById('new-day-btn')!.addEventListener('click', () => {
   sm = new StoreManager();
   player.clearItems();
   player.x = 9; player.y = 9;

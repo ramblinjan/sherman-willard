@@ -1,8 +1,11 @@
 import { ZONE, SHAKE_DURATIONS, TINT_DURATIONS, DAY_DURATION } from './constants';
+import type { ZoneId } from './constants';
+import type { BaseType } from './types';
 import { getNearbyInteractZone } from './tilemap';
 import { generateOrder } from './order';
 import { Customer } from './customer';
 import { OrderTicket, TICKET_STATUS } from './ticket';
+import type { Player } from './player';
 import { showPrompt, showCelebration } from './hud';
 import { pickCustomer } from './dialogue';
 
@@ -11,40 +14,53 @@ const MAX_CARRY      = 3;
 const SPAWN_INTERVAL = 8;
 const CELEBRATION_TIME = 2.0;
 
-const SHAKER_ZONES = [ZONE.SHAKER_A, ZONE.SHAKER_B, ZONE.SHAKER_C];
+const SHAKER_ZONES: ZoneId[] = [ZONE.SHAKER_A, ZONE.SHAKER_B, ZONE.SHAKER_C];
+
+// ── Machine + effect state shapes ──────────────────────────────────────────
+export type ShakerStatus = 'idle' | 'shaking' | 'ready';
+export interface Shaker { ticketId: number | null; timer: number; status: ShakerStatus; }
+
+export interface TintProcessing { ticketId: number; timer: number; total: number; }
+export interface TintMachine {
+  inputQueue:  number[];
+  processing:  TintProcessing | null;
+  outputQueue: number[];
+  active:      boolean;
+  bangTimer:   number;
+}
+
+export interface FlashZone { zone: ZoneId; alpha: number; timer: number; }
 
 export class StoreManager {
-  constructor() {
-    this.tickets  = new Map();
-    this.queue    = [];
-    this.atPickup = [];
-    this.shakers  = [
-      { ticketId: null, timer: 0, status: 'idle' },
-      { ticketId: null, timer: 0, status: 'idle' },
-      { ticketId: null, timer: 0, status: 'idle' },
-    ];
-    this.tintMachine = {
-      inputQueue:  [],
-      processing:  null,  // { ticketId, timer, total }
-      outputQueue: [],
-      active:      false,
-      bangTimer:   0,
-    };
-    this.score        = 0;
-    this.gallonsSold  = 0;
-    this.flashZones   = [];
-    this.dayTimer     = 0;
-    this.dayOver      = false;
+  tickets  = new Map<number, OrderTicket>();
+  queue:    number[] = [];
+  atPickup: number[] = [];
+  shakers:  Shaker[] = [
+    { ticketId: null, timer: 0, status: 'idle' },
+    { ticketId: null, timer: 0, status: 'idle' },
+    { ticketId: null, timer: 0, status: 'idle' },
+  ];
+  tintMachine: TintMachine = {
+    inputQueue:  [],
+    processing:  null,
+    outputQueue: [],
+    active:      false,
+    bangTimer:   0,
+  };
+  score       = 0;
+  gallonsSold = 0;
+  flashZones: FlashZone[] = [];
+  dayTimer    = 0;
+  dayOver     = false;
 
-    this._ticketSeq        = 0;
-    this._spawnTimer       = 1.0;
-    this._celebrationTimer = 0;
-    this._freePickupSlots  = [0, 1, 2, 3, 4, 5];
-  }
+  private _ticketSeq        = 0;
+  private _spawnTimer       = 1.0;
+  private _celebrationTimer  = 0;
+  private _freePickupSlots: number[] = [0, 1, 2, 3, 4, 5];
 
   // ── Main update ──────────────────────────────────────────────────────────
 
-  update(dt, player, player2 = null) {
+  update(dt: number, player: Player, player2: Player | null = null): void {
     if (!this.dayOver) {
       this.dayTimer += dt;
       if (this.dayTimer >= DAY_DURATION) this.dayOver = true;
@@ -66,7 +82,7 @@ export class StoreManager {
 
   // ── Interaction handler ──────────────────────────────────────────────────
 
-  handleInteraction(player) {
+  handleInteraction(player: Player): void {
     const zone = getNearbyInteractZone(player.x, player.y);
     if (!zone) return;
 
@@ -75,13 +91,14 @@ export class StoreManager {
       return;
     }
 
-    const baseMap = {
+    const baseMap: Partial<Record<ZoneId, BaseType>> = {
       [ZONE.SHELF_WHITE]: 'WHITE',
       [ZONE.SHELF_GRAY]:  'GRAY',
       [ZONE.SHELF_DEEP]:  'DEEP',
     };
-    if (baseMap[zone] != null) {
-      this._grabBase(player, baseMap[zone], zone);
+    const grabbed = baseMap[zone];
+    if (grabbed != null) {
+      this._grabBase(player, grabbed, zone);
       return;
     }
 
@@ -113,12 +130,13 @@ export class StoreManager {
 
   // ── Private: order flow ──────────────────────────────────────────────────
 
-  _takeOrder(player) {
+  private _takeOrder(player: Player): void {
     if (this.queue.length === 0) return;
     if (this._freePickupSlots.length === 0) return;
 
     const ticketId = this.queue[0];
     const ticket   = this.tickets.get(ticketId);
+    if (!ticket) return;
     const canCount = ticket.order.canCount;
 
     if (player.totalHeld + canCount > MAX_CARRY) return;
@@ -130,17 +148,17 @@ export class StoreManager {
       player.cans.push({ ticketId, baseType: null });
     }
 
-    const pickupSlot  = this._freePickupSlots.shift();
+    const pickupSlot  = this._freePickupSlots.shift()!;
     ticket.pickupSlot = pickupSlot;
     this.atPickup.push(ticketId);
     ticket.customer.moveToPickup(pickupSlot);
 
-    this.queue.forEach((id, i) => this.tickets.get(id).customer.advanceQueue(i));
+    this.queue.forEach((id, i) => this.tickets.get(id)?.customer.advanceQueue(i));
 
     this._requestLine(ticket);
   }
 
-  _grabBase(player, grabbed, zone) {
+  private _grabBase(player: Player, grabbed: BaseType, zone: ZoneId): void {
     const entry = player.cans.find(e => {
       const t = this.tickets.get(e.ticketId);
       return e.baseType === null && t && t.order.baseType === grabbed;
@@ -153,7 +171,7 @@ export class StoreManager {
     }
   }
 
-  _loadTintInput(player) {
+  private _loadTintInput(player: Player): void {
     const entryIdx = player.cans.findIndex(e => e.baseType !== null);
     if (entryIdx === -1) return;
 
@@ -165,30 +183,30 @@ export class StoreManager {
     }
   }
 
-  _activateTinter() {
+  private _activateTinter(): void {
     const tm = this.tintMachine;
     if (tm.inputQueue.length > 0 || tm.processing) tm.active = true;
   }
 
-  _grabTintOutput(player) {
+  private _grabTintOutput(player: Player): void {
     const tm = this.tintMachine;
     if (tm.outputQueue.length === 0) return;
     if (player.totalHeld >= MAX_CARRY) return;
 
-    const ticketId = tm.outputQueue.shift();
+    const ticketId = tm.outputQueue.shift()!;
     const ticket   = this.tickets.get(ticketId);
     if (ticket) ticket.status = TICKET_STATUS.SEALED;
     player.sealedCans.push({ ticketId });
     tm.bangTimer = 0.6;
   }
 
-  _interactShaker(player, idx) {
+  private _interactShaker(player: Player, idx: number): void {
     const shaker = this.shakers[idx];
 
     if (shaker.status === 'ready') {
-      const ticket = this.tickets.get(shaker.ticketId);
+      const ticket = this.tickets.get(shaker.ticketId!);
       if (ticket) {
-        player.mixedCans.push({ ticketId: shaker.ticketId, order: ticket.order });
+        player.mixedCans.push({ ticketId: shaker.ticketId!, order: ticket.order });
         ticket.status = TICKET_STATUS.AT_PICKUP;
       }
       shaker.ticketId = null;
@@ -198,7 +216,7 @@ export class StoreManager {
     }
 
     if (shaker.status === 'idle' && player.sealedCans.length > 0) {
-      const entry  = player.sealedCans.shift();
+      const entry  = player.sealedCans.shift()!;
       const ticket = this.tickets.get(entry.ticketId);
       if (!ticket) return;
 
@@ -210,12 +228,13 @@ export class StoreManager {
     }
   }
 
-  _deliverPaint(player) {
+  private _deliverPaint(player: Player): void {
     const idx = player.mixedCans.findIndex(e => this.atPickup.includes(e.ticketId));
     if (idx === -1) return;
 
     const { ticketId } = player.mixedCans.splice(idx, 1)[0];
     const ticket = this.tickets.get(ticketId);
+    if (!ticket) return;
 
     ticket.cansDelivered++;
 
@@ -223,7 +242,7 @@ export class StoreManager {
       this.score++;
       this.gallonsSold += ticket.order.canCount;
       this.atPickup = this.atPickup.filter(id => id !== ticketId);
-      this._freePickupSlots.push(ticket.pickupSlot);
+      this._freePickupSlots.push(ticket.pickupSlot!);
       this._freePickupSlots.sort();
 
       ticket.status = TICKET_STATUS.DONE;
@@ -240,7 +259,7 @@ export class StoreManager {
 
   // ── Private: spawning ────────────────────────────────────────────────────
 
-  _tickSpawn(dt) {
+  private _tickSpawn(dt: number): void {
     this._spawnTimer -= dt;
     if (this._spawnTimer > 0) return;
     this._spawnTimer = SPAWN_INTERVAL;
@@ -262,13 +281,13 @@ export class StoreManager {
 
   // ── Private: shakers ─────────────────────────────────────────────────────
 
-  _tickShakers(dt) {
+  private _tickShakers(dt: number): void {
     for (const shaker of this.shakers) {
       if (shaker.status !== 'shaking') continue;
       shaker.timer = Math.max(0, shaker.timer - dt);
       if (shaker.timer === 0) {
         shaker.status = 'ready';
-        const ticket = this.tickets.get(shaker.ticketId);
+        const ticket = this.tickets.get(shaker.ticketId!);
         if (ticket) ticket.status = TICKET_STATUS.SHAKER_DONE;
       }
     }
@@ -276,7 +295,7 @@ export class StoreManager {
 
   // ── Private: tinting machine ─────────────────────────────────────────────
 
-  _tickTintMachine(dt) {
+  private _tickTintMachine(dt: number): void {
     const tm = this.tintMachine;
     tm.bangTimer = Math.max(0, tm.bangTimer - dt);
 
@@ -291,7 +310,7 @@ export class StoreManager {
     }
 
     if (!tm.processing && tm.inputQueue.length > 0 && tm.active) {
-      const ticketId = tm.inputQueue.shift();
+      const ticketId = tm.inputQueue.shift()!;
       const ticket   = this.tickets.get(ticketId);
       if (ticket) {
         const dur  = TINT_DURATIONS[ticket.order.baseType];
@@ -305,7 +324,7 @@ export class StoreManager {
 
   // ── Private: prompts ─────────────────────────────────────────────────────
 
-  _updatePrompt(player, isPrimary = true) {
+  private _updatePrompt(player: Player, isPrimary = true): void {
     player.activeZone = null;
     const zone = getNearbyInteractZone(player.x, player.y);
     if (!zone) { if (isPrimary) showPrompt(null); return; }
@@ -319,7 +338,7 @@ export class StoreManager {
         return;
       }
       if (shaker.status === 'ready') {
-        const ticket = this.tickets.get(shaker.ticketId);
+        const ticket = this.tickets.get(shaker.ticketId!);
         const label  = ticket ? `Collect for ${ticket.order.customerName.split(' ').pop()}` : 'Collect Paint';
         if (isPrimary) showPrompt(label);
         player.activeZone = zone;
@@ -349,7 +368,7 @@ export class StoreManager {
     }
 
     if (zone === ZONE.SHELF_WHITE || zone === ZONE.SHELF_GRAY || zone === ZONE.SHELF_DEEP) {
-      const baseNeeded = { SHELF_WHITE: 'WHITE', SHELF_GRAY: 'GRAY', SHELF_DEEP: 'DEEP' }[zone];
+      const baseNeeded: BaseType = { SHELF_WHITE: 'WHITE', SHELF_GRAY: 'GRAY', SHELF_DEEP: 'DEEP' }[zone] as BaseType;
       const canGrab = player.cans.some(e => {
         const t = this.tickets.get(e.ticketId);
         return e.baseType === null && t && t.order.baseType === baseNeeded;
@@ -416,7 +435,7 @@ export class StoreManager {
 
   // ── Private: dialogue ────────────────────────────────────────────────────
 
-  _requestLine(ticket) {
+  private _requestLine(ticket: OrderTicket): void {
     const c = ticket.customer;
     if (!c.lines?.length || !ticket.order) return;
     c.speech = { state: 'shown' };
@@ -424,12 +443,12 @@ export class StoreManager {
 
   // ── Private: flashes ─────────────────────────────────────────────────────
 
-  _addFlash(zone) {
+  private _addFlash(zone: ZoneId): void {
     this.flashZones = this.flashZones.filter(f => f.zone !== zone);
     this.flashZones.push({ zone, alpha: 0.55, timer: 0.5 });
   }
 
-  _updateFlashes(dt) {
+  private _updateFlashes(dt: number): void {
     this.flashZones = this.flashZones
       .map(f => ({ ...f, timer: f.timer - dt, alpha: Math.max(0, (f.timer - dt) / 0.5 * 0.55) }))
       .filter(f => f.timer > 0);
@@ -437,15 +456,15 @@ export class StoreManager {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  get allCustomers() {
+  get allCustomers(): Customer[] {
     return [...this.tickets.values()].map(t => t.customer);
   }
 
-  get queueTickets() {
-    return this.queue.map(id => this.tickets.get(id));
+  get queueTickets(): OrderTicket[] {
+    return this.queue.map(id => this.tickets.get(id)!);
   }
 
-  get pickupTickets() {
-    return this.atPickup.map(id => this.tickets.get(id));
+  get pickupTickets(): OrderTicket[] {
+    return this.atPickup.map(id => this.tickets.get(id)!);
   }
 }
