@@ -44,6 +44,21 @@ const WALKABLE = new Set([
   ZONE.REGISTER, ZONE.PICKUP,
 ]);
 
+// Rug tile regions — authoritative source for both rendering and hot zone detection
+export const RUGS = [
+  { col: 3,  row: 10, w: 3, h: 2, zone: ZONE.REGISTER },
+  { col: 14, row: 10, w: 3, h: 2, zone: ZONE.PICKUP },
+  { col: 3,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_A },
+  { col: 5,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_B },
+  { col: 7,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_C },
+  { col: 10, row: 8,  w: 2, h: 1, zone: ZONE.TINT_OUTPUT },
+  { col: 12, row: 8,  w: 3, h: 1, zone: ZONE.TINT_MACHINE_BODY },
+  { col: 15, row: 8,  w: 2, h: 1, zone: ZONE.TINT_INPUT },
+  { col: 3,  row: 4,  w: 4, h: 1, zone: ZONE.SHELF_WHITE },
+  { col: 8,  row: 4,  w: 4, h: 1, zone: ZONE.SHELF_GRAY },
+  { col: 13, row: 4,  w: 4, h: 1, zone: ZONE.SHELF_DEEP },
+];
+
 export const INTERACT_POINTS = {
   [ZONE.REGISTER]:          { x: 4,    y: 11   },
   [ZONE.PICKUP]:            { x: 15,   y: 11   },
@@ -72,18 +87,15 @@ export function isWalkable(col, row) {
 }
 
 export function getNearbyInteractZone(px, py) {
-  let closest = null;
-  let closestDist = Infinity;
-
-  for (const [zone, pt] of Object.entries(INTERACT_POINTS)) {
-    const dist = Math.abs(px - pt.x) + Math.abs(py - pt.y);
-    if (dist < 1.8 && dist < closestDist) {
-      closestDist = dist;
-      closest = zone;
+  const col = Math.floor(px);
+  const row = Math.floor(py);
+  for (const rug of RUGS) {
+    if (col >= rug.col && col < rug.col + rug.w &&
+        row >= rug.row && row < rug.row + rug.h) {
+      return rug.zone;
     }
   }
-
-  return closest;
+  return null;
 }
 
 export { MAP };

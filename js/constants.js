@@ -1,5 +1,5 @@
 export const TILE = 40;
-export const DAY_DURATION = 180; // seconds per shift
+export const DAY_DURATION = 360; // seconds per shift
 export const COLS = 20;
 export const ROWS = 15;
 

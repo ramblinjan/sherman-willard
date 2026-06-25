@@ -1,5 +1,5 @@
 import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants.js';
-import { MAP, INTERACT_POINTS, isWalkable, getNearbyInteractZone } from './tilemap.js';
+import { MAP, RUGS, INTERACT_POINTS, isWalkable, getNearbyInteractZone } from './tilemap.js';
 
 const S = TILE / 32; // scale factor relative to original 32px tile size
 
@@ -66,20 +66,6 @@ const ZONE_COLORS = {
   [ZONE.TINT_OUTPUT]:       [190, 120, 255],
 };
 
-// Explicit rug positions (col, row, w cols, h rows, zone for color)
-const RUGS = [
-  { col: 3,  row: 10, w: 3, h: 2, zone: ZONE.REGISTER },
-  { col: 14, row: 10, w: 3, h: 2, zone: ZONE.PICKUP },
-  { col: 3,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_A },
-  { col: 5,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_B },
-  { col: 7,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_C },
-  { col: 10, row: 8,  w: 2, h: 1, zone: ZONE.TINT_OUTPUT },
-  { col: 12, row: 8,  w: 3, h: 1, zone: ZONE.TINT_MACHINE_BODY },
-  { col: 15, row: 8,  w: 2, h: 1, zone: ZONE.TINT_INPUT },
-  { col: 3,  row: 4,  w: 4, h: 1, zone: ZONE.SHELF_WHITE },
-  { col: 8,  row: 4,  w: 4, h: 1, zone: ZONE.SHELF_GRAY },
-  { col: 13, row: 4,  w: 4, h: 1, zone: ZONE.SHELF_DEEP },
-];
 
 function _drawInteractRugs() {
   for (const { col, row, w, h, zone } of RUGS) {
@@ -517,18 +503,11 @@ export function drawPlayer(player, bodyColor = '#3399ee', elapsed = 0) {
     ctx.strokeRect(bx, by, 10 * S, 6 * S);
   });
 
-  // Interaction zone: pulsing glow outline + action badge above head
+  // Action badge above head when in an interaction zone
   const nearZone = getNearbyInteractZone(player.x, player.y);
   if (nearZone) {
     const rgb = ZONE_COLORS[nearZone];
-    if (rgb) {
-      const pulse = 0.5 + 0.5 * Math.sin(elapsed * 5);
-      ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.45 + 0.35 * pulse).toFixed(2)})`;
-      ctx.lineWidth   = 2.5 * S;
-      ctx.strokeRect(px - 12 * S, py - 16 * S, 24 * S, 28 * S);
-      ctx.lineWidth = 1;
-      _drawActionBadge(px, py - 34 * S, nearZone, rgb);
-    }
+    if (rgb) _drawActionBadge(px, py - 34 * S, nearZone, rgb);
   }
 
   ctx.restore();
