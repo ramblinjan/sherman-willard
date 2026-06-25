@@ -27,10 +27,10 @@ export const BASE_TYPES = ['WHITE', 'GRAY', 'DEEP'];
 export const HUE_CODES  = ['BL', 'RD', 'YL', 'GR', 'VL', 'OR'];
 
 // Base-type-dependent shake durations (seconds)
-export const SHAKE_DURATIONS = { WHITE: 5, GRAY: 10, DEEP: 15 };
+export const SHAKE_DURATIONS = { WHITE: 3, GRAY: 6, DEEP: 9 };
 
 // Base-type-dependent tint durations (seconds)
-export const TINT_DURATIONS = { WHITE: 3, GRAY: 6, DEEP: 9 };
+export const TINT_DURATIONS = { WHITE: 2, GRAY: 4, DEEP: 6 };
 
 export const TINT_COLORS = {
   BL: '#2255bb',
