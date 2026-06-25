@@ -92,36 +92,39 @@ function _drawInteractRugs() {
 
     ctx.save();
 
-    // Dark fill with very subtle zone color tint
-    ctx.fillStyle = `rgba(${Math.round(r*0.07+5)},${Math.round(g*0.07+5)},${Math.round(b*0.10+9)},0.92)`;
+    // Light gray fill with subtle zone color tint
+    const rf = Math.round(118 + r * 0.06);
+    const gf = Math.round(113 + g * 0.06);
+    const bf = Math.round(108 + b * 0.07);
+    ctx.fillStyle = `rgba(${rf},${gf},${bf},0.82)`;
     ctx.fillRect(x + pad, y + pad, rw - pad*2, rh - pad*2);
 
-    // Pile texture: grid of tiny dots
+    // Pile texture: grid of darker dots so texture is clearly visible
     const dotSz = Math.max(1, Math.round(1.2 * S));
     const step  = Math.round(4.5 * S);
-    ctx.fillStyle = `rgba(${Math.round(r*0.18+16)},${Math.round(g*0.18+16)},${Math.round(b*0.22+20)},0.55)`;
+    ctx.fillStyle = `rgba(${Math.round(rf*0.60)},${Math.round(gf*0.60)},${Math.round(bf*0.60)},0.70)`;
     for (let px = x + step; px < x + rw - step * 0.5; px += step) {
       for (let py2 = y + step; py2 < y + rh - step * 0.5; py2 += step) {
         ctx.fillRect(px, py2, dotSz, dotSz);
       }
     }
 
-    // Border color (brighter version of tint)
-    const br = Math.round(r * 0.38 + 18);
-    const bg2 = Math.round(g * 0.38 + 18);
-    const bb = Math.round(b * 0.38 + 24);
+    // Border/shadow color (notably darker than fill)
+    const rb = Math.round(rf * 0.46);
+    const gb2 = Math.round(gf * 0.46);
+    const bbb = Math.round(bf * 0.46);
 
-    // Fuzzy outer border (shadowBlur gives soft carpet-edge glow)
-    ctx.shadowColor = `rgba(${br},${bg2},${bb},0.45)`;
+    // Fuzzy outer border with shadowBlur for soft carpet-edge look
+    ctx.shadowColor = `rgba(${rb},${gb2},${bbb},0.55)`;
     ctx.shadowBlur  = 3 * S;
-    ctx.strokeStyle = `rgba(${br},${bg2},${bb},0.88)`;
+    ctx.strokeStyle = `rgba(${rb},${gb2},${bbb},0.92)`;
     ctx.lineWidth   = 2;
     ctx.strokeRect(x + pad, y + pad, rw - pad*2, rh - pad*2);
     ctx.shadowBlur  = 0;
 
     // Inner decorative border line
     const inset = Math.round(3.5 * S);
-    ctx.strokeStyle = `rgba(${br},${bg2},${bb},0.4)`;
+    ctx.strokeStyle = `rgba(${rb},${gb2},${bbb},0.45)`;
     ctx.lineWidth   = 1;
     ctx.strokeRect(x + pad + inset, y + pad + inset,
                    rw - pad*2 - inset*2, rh - pad*2 - inset*2);

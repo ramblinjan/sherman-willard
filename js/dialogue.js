@@ -34,6 +34,13 @@ export const PERSONAS = [
 // ~15 per persona/phase — large enough that a session rarely repeats.
 const CANNED = {
   ganja_pro: {
+    WAIT: [
+      'No rush, man. Time is a construct anyway.',
+      'Is that {color} I see on the swatch? I had a dream about that.',
+      'The wait is part of it. You know?',
+      'I\'m just vibing. Take your time.',
+      'Good energy in here today.',
+    ],
     ORDER: [
       '{color}... dude, that name alone is worth the trip.',
       'I had a dream about this color. Like, specifically this one.',
@@ -71,6 +78,13 @@ const CANNED = {
   },
 
   old_timer: {
+    WAIT: [
+      'How long is this going to take.',
+      'There\'s a line, in case nobody noticed.',
+      'In my day you walked up and they helped you.',
+      'I\'ve been standing here a while.',
+      'Service used to mean something.',
+    ],
     ORDER: [
       'Back in my day this was a nickel a gallon.',
       'How much?! For paint?? Highway robbery.',
@@ -108,6 +122,13 @@ const CANNED = {
   },
 
   existential: {
+    WAIT: [
+      'Standing here, uncertain... this is basically my whole life.',
+      'Am I even in the right line.',
+      'I could leave. I\'m not going to leave. But I could.',
+      'The waiting is somehow the easiest part.',
+      'I\'ve been here before. Or somewhere like it. Existentially.',
+    ],
     ORDER: [
       'Is any color truly the right one? Ugh. That one.',
       'I\'ve thought about this for weeks. Probably wrong.',
@@ -145,6 +166,13 @@ const CANNED = {
   },
 
   contractor: {
+    WAIT: [
+      'Waiting.',
+      'Quick as you can.',
+      'Got a crew on the clock.',
+      'Ready when you are.',
+      'Clock\'s ticking.',
+    ],
     ORDER: [
       'One can, the usual base. Let\'s move.',
       'I got three jobs today, make it quick.',
@@ -182,6 +210,13 @@ const CANNED = {
   },
 
   chatty_regular: {
+    WAIT: [
+      'I love this place, it always smells so... painty?',
+      'Did you paint in here recently? Something looks different.',
+      'Oh! I meant to ask — do you sell rollers too?',
+      'I\'m so glad you were open, I tried three places!',
+      'Hi! Almost my turn! Exciting!',
+    ],
     ORDER: [
       'Oh this is for the guest bath — long story!',
       'My sister HATED the last color, can you believe it?',

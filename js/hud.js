@@ -3,10 +3,12 @@ import { TILE, COLS, DAY_DURATION } from './constants.js';
 const el = id => document.getElementById(id);
 const CONTAINER = COLS * TILE; // canvas width in px
 
-// Speech bubble cycling state
-let _bubbleTarget   = null;
-let _bubbleTimer    = 0;
-let _bubbleDuration = 3;
+// Two independent speech bubble groups: queue (register line) and pickup
+const _bubbleState = {
+  queue:  { target: null, timer: 0, duration: 12 },
+  pickup: { target: null, timer: 0, duration: 12 },
+};
+const _spokenMap = new Map(); // customer → reqId when they were last shown
 
 export function updateHUD(sm, player, player2 = null) {
   el('score').textContent = sm.score;
@@ -212,50 +214,67 @@ export function showCelebration(show) {
   el('celebration').classList.toggle('hidden', !show);
 }
 
-export function updateSpeechBubbles(customers, dt = 0) {
-  const bubble = el('speech-bubble');
-  const valid  = customers.filter(c => c.visible && c.speech?.state === 'shown');
+export function updateSpeechBubbles(queueCustomers, pickupCustomers, dt = 0) {
+  _tickBubble(el('speech-bubble'),   el('speech-text'),   queueCustomers,  dt, 'queue');
+  _tickBubble(el('speech-bubble-2'), el('speech-text-2'), pickupCustomers, dt, 'pickup');
+}
 
-  if (valid.length === 0) {
+function _tickBubble(bubble, textEl, customers, dt, key) {
+  const state = _bubbleState[key];
+
+  // Check if current target is still showable
+  const targetValid = state.target
+    && state.target.visible
+    && state.target.speech?.state === 'shown'
+    && state.timer > 0;
+
+  if (!targetValid) {
+    state.target = null;
+    state.timer  = 0;
+
+    // Find first unspoken candidate
+    const candidate = customers.find(c =>
+      c?.visible &&
+      c.speech?.state === 'shown' &&
+      _spokenMap.get(c) !== c.reqId
+    );
+
+    if (candidate) {
+      state.target   = candidate;
+      state.duration = 10 + Math.random() * 5;
+      state.timer    = state.duration;
+      _spokenMap.set(candidate, candidate.reqId); // mark as spoken
+    }
+  }
+
+  if (!state.target) {
     bubble.classList.add('hidden');
     bubble.style.opacity = '1';
-    _bubbleTarget = null;
-    _bubbleTimer  = 0;
     return;
   }
 
-  // If current target is no longer valid, switch to first valid customer
-  if (!valid.includes(_bubbleTarget)) {
-    _bubbleTarget   = valid[0];
-    _bubbleDuration = 2.5 + Math.random() * 2;
-    _bubbleTimer    = _bubbleDuration;
-  }
-
-  // Advance timer; when expired, rotate to next customer
-  _bubbleTimer -= dt;
-  if (_bubbleTimer <= 0) {
-    const idx       = valid.indexOf(_bubbleTarget);
-    _bubbleTarget   = valid[(idx + 1) % valid.length];
-    _bubbleDuration = 2.5 + Math.random() * 2;
-    _bubbleTimer    = _bubbleDuration;
+  state.timer -= dt;
+  if (state.timer <= 0) {
+    state.target = null;
+    bubble.classList.add('hidden');
+    bubble.style.opacity = '1';
+    return;
   }
 
   // Fade out over the last 40% of display time
-  const fadeStart = _bubbleDuration * 0.6;
-  const opacity   = _bubbleTimer > fadeStart
+  const fadeStart = state.duration * 0.6;
+  const opacity   = state.timer > fadeStart
     ? 1.0
-    : 0.2 + 0.8 * (_bubbleTimer / fadeStart);
+    : 0.2 + 0.8 * (state.timer / fadeStart);
   bubble.style.opacity = opacity.toFixed(3);
 
-  const target = _bubbleTarget;
   bubble.classList.remove('hidden');
-  bubble.classList.remove('loading');
-  el('speech-text').textContent = target.speech.text;
+  textEl.textContent = state.target.speech.text;
 
   const w    = bubble.offsetWidth;
   const h    = bubble.offsetHeight;
-  let left   = target.px - w / 2;
-  let top    = target.py - 44 * (TILE / 32) - h;
+  let left   = state.target.px - w / 2;
+  let top    = state.target.py - 44 * (TILE / 32) - h;
   left = Math.max(4, Math.min(CONTAINER - w - 4, left));
   top  = Math.max(4, top);
   bubble.style.left = left + 'px';

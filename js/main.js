@@ -57,7 +57,9 @@ function gameLoop(timestamp) {
 
   // HUD
   updateHUD(sm, player, player2);
-  updateSpeechBubbles(sm.allCustomers, dt);
+  const queueCustomers  = sm.queueTickets.map(t => t.customer);
+  const pickupCustomers = sm.pickupTickets.map(t => t.customer);
+  updateSpeechBubbles(queueCustomers, pickupCustomers, dt);
 
   // Day end
   if (sm.dayOver) {

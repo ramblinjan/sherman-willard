@@ -256,6 +256,7 @@ export class StoreManager {
     customer.arrive(order, pickPersona(), slot);
     this.tickets.set(id, ticket);
     this.queue.push(id);
+    this._requestLine(ticket, 'WAIT');
   }
 
   // ── Private: shakers ─────────────────────────────────────────────────────
