@@ -1,5 +1,5 @@
 import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants.js';
-import { MAP, RUGS, INTERACT_POINTS, isWalkable, getNearbyInteractZone } from './tilemap.js';
+import { MAP, RUGS, INTERACT_POINTS, isWalkable } from './tilemap.js';
 
 const S = TILE / 32; // scale factor relative to original 32px tile size
 
@@ -503,8 +503,8 @@ export function drawPlayer(player, bodyColor = '#3399ee', elapsed = 0) {
     ctx.strokeRect(bx, by, 10 * S, 6 * S);
   });
 
-  // Action badge above head when in an interaction zone
-  const nearZone = getNearbyInteractZone(player.x, player.y);
+  // Action badge above head only when storemanager confirmed a valid action exists
+  const nearZone = player.activeZone;
   if (nearZone) {
     const rgb = ZONE_COLORS[nearZone];
     if (rgb) _drawActionBadge(px, py - 34 * S, nearZone, rgb);

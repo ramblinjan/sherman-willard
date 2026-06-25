@@ -44,7 +44,7 @@ export class StoreManager {
 
   // ── Main update ──────────────────────────────────────────────────────────
 
-  update(dt, player) {
+  update(dt, player, player2 = null) {
     if (!this.dayOver) {
       this.dayTimer += dt;
       if (this.dayTimer >= DAY_DURATION) this.dayOver = true;
@@ -61,6 +61,7 @@ export class StoreManager {
     }
 
     this._updatePrompt(player);
+    if (player2) this._updatePrompt(player2, false);
   }
 
   // ── Interaction handler ──────────────────────────────────────────────────
@@ -304,37 +305,46 @@ export class StoreManager {
 
   // ── Private: prompts ─────────────────────────────────────────────────────
 
-  _updatePrompt(player) {
+  _updatePrompt(player, isPrimary = true) {
+    player.activeZone = null;
     const zone = getNearbyInteractZone(player.x, player.y);
-    if (!zone) { showPrompt(null); return; }
+    if (!zone) { if (isPrimary) showPrompt(null); return; }
 
     const shakerIdx = SHAKER_ZONES.indexOf(zone);
     if (shakerIdx !== -1) {
       const shaker = this.shakers[shakerIdx];
       if (shaker.status === 'shaking') {
-        showPrompt(`Shaking… ${Math.ceil(shaker.timer)}s`, false);
+        if (isPrimary) showPrompt(`Shaking… ${Math.ceil(shaker.timer)}s`, false);
+        player.activeZone = zone;
         return;
       }
       if (shaker.status === 'ready') {
         const ticket = this.tickets.get(shaker.ticketId);
         const label  = ticket ? `Collect for ${ticket.order.customerName.split(' ').pop()}` : 'Collect Paint';
-        showPrompt(label);
+        if (isPrimary) showPrompt(label);
+        player.activeZone = zone;
         return;
       }
-      showPrompt(player.sealedCans.length > 0 ? 'Load Shaker' : null);
+      if (player.sealedCans.length > 0) {
+        if (isPrimary) showPrompt('Load Shaker');
+        player.activeZone = zone;
+      } else {
+        if (isPrimary) showPrompt(null);
+      }
       return;
     }
 
     if (zone === ZONE.REGISTER) {
       if (this.queue.length === 0 || this._freePickupSlots.length === 0) {
-        showPrompt(null); return;
+        if (isPrimary) showPrompt(null); return;
       }
       const nextTicket = this.tickets.get(this.queue[0]);
       const canCount   = nextTicket?.order.canCount ?? 1;
       if (player.totalHeld + canCount > MAX_CARRY) {
-        showPrompt(null); return;
+        if (isPrimary) showPrompt(null); return;
       }
-      showPrompt(canCount > 1 ? `Take Order (×${canCount})` : 'Take Order');
+      if (isPrimary) showPrompt(canCount > 1 ? `Take Order (×${canCount})` : 'Take Order');
+      player.activeZone = zone;
       return;
     }
 
@@ -345,37 +355,63 @@ export class StoreManager {
         return e.baseType === null && t && t.order.baseType === baseNeeded;
       });
       const labels = { SHELF_WHITE: 'Grab White Base', SHELF_GRAY: 'Grab Gray Base', SHELF_DEEP: 'Grab Deep Base' };
-      showPrompt(canGrab ? labels[zone] : null);
+      if (canGrab) {
+        if (isPrimary) showPrompt(labels[zone]);
+        player.activeZone = zone;
+      } else {
+        if (isPrimary) showPrompt(null);
+      }
       return;
     }
 
     if (zone === ZONE.TINT_INPUT) {
-      showPrompt(player.cans.some(e => e.baseType !== null) ? 'Load Tinter' : null);
+      if (player.cans.some(e => e.baseType !== null)) {
+        if (isPrimary) showPrompt('Load Tinter');
+        player.activeZone = zone;
+      } else {
+        if (isPrimary) showPrompt(null);
+      }
       return;
     }
 
     if (zone === ZONE.TINT_MACHINE_BODY) {
       const tm = this.tintMachine;
       if (tm.processing) {
-        showPrompt(`Tinting… ${Math.ceil(tm.processing.timer)}s`, false);
+        if (isPrimary) showPrompt(`Tinting… ${Math.ceil(tm.processing.timer)}s`, false);
+        player.activeZone = zone;
         return;
       }
-      showPrompt(tm.inputQueue.length > 0 && !tm.active ? 'Start Tinter' : null);
+      if (tm.inputQueue.length > 0 && !tm.active) {
+        if (isPrimary) showPrompt('Start Tinter');
+        player.activeZone = zone;
+      } else {
+        if (isPrimary) showPrompt(null);
+      }
       return;
     }
 
     if (zone === ZONE.TINT_OUTPUT) {
-      showPrompt(this.tintMachine.outputQueue.length > 0 ? 'Seal Can' : null);
+      if (this.tintMachine.outputQueue.length > 0) {
+        if (isPrimary) showPrompt('Seal Can');
+        player.activeZone = zone;
+      } else {
+        if (isPrimary) showPrompt(null);
+      }
       return;
     }
 
     if (zone === ZONE.PICKUP) {
       const canDeliver = player.mixedCans.some(e => this.atPickup.includes(e.ticketId));
-      showPrompt(canDeliver ? 'Hand Off Paint' : null);
+      if (canDeliver) {
+        if (isPrimary) showPrompt('Hand Off Paint');
+        player.activeZone = zone;
+      } else {
+        if (isPrimary) showPrompt(null);
+      }
       return;
     }
 
-    showPrompt(null);
+    if (isPrimary) showPrompt(null);
   }
 
   // ── Private: dialogue ────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ export class Player {
     this.mixedCans  = [];  // { ticketId, order }    — mixed, going to pickup
     this.facingX = 0;
     this.facingY = 1;
+    this.activeZone = null; // set each frame by StoreManager; null = no valid action
   }
 
   update(dt) {

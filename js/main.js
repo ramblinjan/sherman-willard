@@ -39,7 +39,7 @@ function gameLoop(timestamp) {
   // Update
   player.update(dt);
   if (player2) player2.update(dt);
-  sm.update(dt, player);
+  sm.update(dt, player, player2);
   for (const c of sm.allCustomers) c.update(dt);
 
   // Build remaining-cans map for customer sprite labels
