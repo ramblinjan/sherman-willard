@@ -3,6 +3,11 @@ import { TILE, COLS, DAY_DURATION } from './constants.js';
 const el = id => document.getElementById(id);
 const CONTAINER = COLS * TILE; // canvas width in px
 
+// Speech bubble cycling state
+let _bubbleTarget   = null;
+let _bubbleTimer    = 0;
+let _bubbleDuration = 3;
+
 export function updateHUD(sm, player, player2 = null) {
   el('score').textContent = sm.score;
   _updateDayBanner(sm);
@@ -207,20 +212,45 @@ export function showCelebration(show) {
   el('celebration').classList.toggle('hidden', !show);
 }
 
-export function updateSpeechBubbles(customers) {
-  const bubble  = el('speech-bubble');
-  const visible = customers.filter(c => c.visible && c.speech && c.speech.state !== 'hidden');
+export function updateSpeechBubbles(customers, dt = 0) {
+  const bubble = el('speech-bubble');
+  const valid  = customers.filter(c => c.visible && c.speech?.state === 'shown');
 
-  if (visible.length === 0) {
+  if (valid.length === 0) {
     bubble.classList.add('hidden');
+    bubble.style.opacity = '1';
+    _bubbleTarget = null;
+    _bubbleTimer  = 0;
     return;
   }
 
-  const target = visible.find(c => c.speech.state === 'loading') || visible[0];
+  // If current target is no longer valid, switch to first valid customer
+  if (!valid.includes(_bubbleTarget)) {
+    _bubbleTarget   = valid[0];
+    _bubbleDuration = 2.5 + Math.random() * 2;
+    _bubbleTimer    = _bubbleDuration;
+  }
 
+  // Advance timer; when expired, rotate to next customer
+  _bubbleTimer -= dt;
+  if (_bubbleTimer <= 0) {
+    const idx       = valid.indexOf(_bubbleTarget);
+    _bubbleTarget   = valid[(idx + 1) % valid.length];
+    _bubbleDuration = 2.5 + Math.random() * 2;
+    _bubbleTimer    = _bubbleDuration;
+  }
+
+  // Fade out over the last 40% of display time
+  const fadeStart = _bubbleDuration * 0.6;
+  const opacity   = _bubbleTimer > fadeStart
+    ? 1.0
+    : 0.2 + 0.8 * (_bubbleTimer / fadeStart);
+  bubble.style.opacity = opacity.toFixed(3);
+
+  const target = _bubbleTarget;
   bubble.classList.remove('hidden');
-  bubble.classList.toggle('loading', target.speech.state === 'loading');
-  el('speech-text').textContent = target.speech.state === 'loading' ? '' : target.speech.text;
+  bubble.classList.remove('loading');
+  el('speech-text').textContent = target.speech.text;
 
   const w    = bubble.offsetWidth;
   const h    = bubble.offsetHeight;

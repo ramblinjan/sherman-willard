@@ -1,5 +1,5 @@
 import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants.js';
-import { MAP, INTERACT_POINTS, isWalkable } from './tilemap.js';
+import { MAP, INTERACT_POINTS, isWalkable, getNearbyInteractZone } from './tilemap.js';
 
 const S = TILE / 32; // scale factor relative to original 32px tile size
 
@@ -35,6 +35,7 @@ export function drawTiles(flashZones, shakersState, tintMachine, elapsed) {
     }
   }
 
+  _drawInteractRugs();
   _drawShelfLabels();
   _drawTintingMachine(tintMachine, elapsed);
   _drawCounter();
@@ -49,7 +50,7 @@ export function drawTiles(flashZones, shakersState, tintMachine, elapsed) {
   }
 }
 
-// ── Hot zone highlights (disabled — implemented for future use) ────────────
+// ── Zone colors (used for floor mats and player glow) ─────────────────────
 
 const ZONE_COLORS = {
   [ZONE.REGISTER]:          [255, 215,  50],
@@ -65,21 +66,68 @@ const ZONE_COLORS = {
   [ZONE.TINT_OUTPUT]:       [190, 120, 255],
 };
 
-function _drawHotZones() {
-  for (const [zoneName, pt] of Object.entries(INTERACT_POINTS)) {
-    const rgb = ZONE_COLORS[zoneName];
+// Explicit rug positions (col, row, w cols, h rows, zone for color)
+const RUGS = [
+  { col: 3,  row: 10, w: 3, h: 2, zone: ZONE.REGISTER },
+  { col: 14, row: 10, w: 3, h: 2, zone: ZONE.PICKUP },
+  { col: 3,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_A },
+  { col: 5,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_B },
+  { col: 7,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_C },
+  { col: 10, row: 8,  w: 2, h: 1, zone: ZONE.TINT_OUTPUT },
+  { col: 12, row: 8,  w: 3, h: 1, zone: ZONE.TINT_MACHINE_BODY },
+  { col: 15, row: 8,  w: 2, h: 1, zone: ZONE.TINT_INPUT },
+  { col: 3,  row: 4,  w: 4, h: 1, zone: ZONE.SHELF_WHITE },
+  { col: 8,  row: 4,  w: 4, h: 1, zone: ZONE.SHELF_GRAY },
+  { col: 13, row: 4,  w: 4, h: 1, zone: ZONE.SHELF_DEEP },
+];
+
+function _drawInteractRugs() {
+  for (const { col, row, w, h, zone } of RUGS) {
+    const rgb = ZONE_COLORS[zone];
     if (!rgb) continue;
-    for (let col = Math.max(0, Math.floor(pt.x - 1.8)); col <= Math.min(COLS - 1, Math.ceil(pt.x + 1.8)); col++) {
-      for (let row = Math.max(0, Math.floor(pt.y - 1.8)); row <= Math.min(ROWS - 1, Math.ceil(pt.y + 1.8)); row++) {
-        if (!isWalkable(col, row)) continue;
-        if (Math.abs(col - pt.x) + Math.abs(row - pt.y) >= 1.8) continue;
-        ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.18)`;
-        ctx.fillRect(col * TILE, row * TILE, TILE, TILE);
-        ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.45)`;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(col * TILE + 0.5, row * TILE + 0.5, TILE - 1, TILE - 1);
+    const x = col * TILE, y = row * TILE;
+    const rw = w * TILE,  rh = h * TILE;
+    const [r, g, b] = rgb;
+    const pad = 2;
+
+    ctx.save();
+
+    // Dark fill with very subtle zone color tint
+    ctx.fillStyle = `rgba(${Math.round(r*0.07+5)},${Math.round(g*0.07+5)},${Math.round(b*0.10+9)},0.92)`;
+    ctx.fillRect(x + pad, y + pad, rw - pad*2, rh - pad*2);
+
+    // Pile texture: grid of tiny dots
+    const dotSz = Math.max(1, Math.round(1.2 * S));
+    const step  = Math.round(4.5 * S);
+    ctx.fillStyle = `rgba(${Math.round(r*0.18+16)},${Math.round(g*0.18+16)},${Math.round(b*0.22+20)},0.55)`;
+    for (let px = x + step; px < x + rw - step * 0.5; px += step) {
+      for (let py2 = y + step; py2 < y + rh - step * 0.5; py2 += step) {
+        ctx.fillRect(px, py2, dotSz, dotSz);
       }
     }
+
+    // Border color (brighter version of tint)
+    const br = Math.round(r * 0.38 + 18);
+    const bg2 = Math.round(g * 0.38 + 18);
+    const bb = Math.round(b * 0.38 + 24);
+
+    // Fuzzy outer border (shadowBlur gives soft carpet-edge glow)
+    ctx.shadowColor = `rgba(${br},${bg2},${bb},0.45)`;
+    ctx.shadowBlur  = 3 * S;
+    ctx.strokeStyle = `rgba(${br},${bg2},${bb},0.88)`;
+    ctx.lineWidth   = 2;
+    ctx.strokeRect(x + pad, y + pad, rw - pad*2, rh - pad*2);
+    ctx.shadowBlur  = 0;
+
+    // Inner decorative border line
+    const inset = Math.round(3.5 * S);
+    ctx.strokeStyle = `rgba(${br},${bg2},${bb},0.4)`;
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(x + pad + inset, y + pad + inset,
+                   rw - pad*2 - inset*2, rh - pad*2 - inset*2);
+
+    ctx.lineWidth = 1;
+    ctx.restore();
   }
 }
 
@@ -433,7 +481,7 @@ function _drawOneCustomer(customer, remaining) {
 
 // ── Player ────────────────────────────────────────────────────────────────
 
-export function drawPlayer(player, bodyColor = '#3399ee') {
+export function drawPlayer(player, bodyColor = '#3399ee', elapsed = 0) {
   const px = player.px;
   const py = player.py;
 
@@ -466,7 +514,115 @@ export function drawPlayer(player, bodyColor = '#3399ee') {
     ctx.strokeRect(bx, by, 10 * S, 6 * S);
   });
 
+  // Interaction zone: pulsing glow outline + action badge above head
+  const nearZone = getNearbyInteractZone(player.x, player.y);
+  if (nearZone) {
+    const rgb = ZONE_COLORS[nearZone];
+    if (rgb) {
+      const pulse = 0.5 + 0.5 * Math.sin(elapsed * 5);
+      ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${(0.45 + 0.35 * pulse).toFixed(2)})`;
+      ctx.lineWidth   = 2.5 * S;
+      ctx.strokeRect(px - 12 * S, py - 16 * S, 24 * S, 28 * S);
+      ctx.lineWidth = 1;
+      _drawActionBadge(px, py - 34 * S, nearZone, rgb);
+    }
+  }
+
   ctx.restore();
+}
+
+function _drawActionBadge(cx, cy, zone, rgb) {
+  const hw = 7 * S, hh = 7 * S;
+
+  // Background rounded rect
+  ctx.fillStyle = 'rgba(20,20,30,0.88)';
+  _roundRect(cx - hw, cy - hh, hw * 2, hh * 2, 3 * S);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`;
+  ctx.lineWidth   = 1.5;
+  _roundRect(cx - hw, cy - hh, hw * 2, hh * 2, 3 * S);
+  ctx.stroke();
+
+  // Icon (white, centered)
+  ctx.fillStyle   = '#fff';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth   = 1.2 * S;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  if (zone === ZONE.REGISTER) {
+    // Clipboard: rect outline + 3 fill lines
+    ctx.strokeRect(cx - 2.5 * S, cy - 4 * S, 5 * S, 8 * S);
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(cx - 1.5 * S, cy - 2 * S + i * 2.5 * S, 3 * S, 0.8 * S);
+    }
+
+  } else if (zone === ZONE.SHELF_WHITE || zone === ZONE.SHELF_GRAY || zone === ZONE.SHELF_DEEP) {
+    // Paint can: rect body + handle arc on top
+    ctx.fillRect(cx - 2.5 * S, cy - 0.5 * S, 5 * S, 5 * S);
+    ctx.strokeRect(cx - 2.5 * S, cy - 0.5 * S, 5 * S, 5 * S);
+    ctx.strokeRect(cx - 3 * S, cy - 1.5 * S, 6 * S, 1.5 * S); // rim
+    ctx.beginPath();
+    ctx.arc(cx, cy - 1 * S, 2 * S, Math.PI, 0);
+    ctx.stroke(); // handle
+
+  } else if (zone === ZONE.TINT_INPUT) {
+    // Arrow → then box
+    ctx.strokeRect(cx, cy - 3 * S, 4 * S, 6 * S);
+    ctx.beginPath();
+    ctx.moveTo(cx - 5 * S, cy);
+    ctx.lineTo(cx,          cy);
+    ctx.moveTo(cx - 2.5 * S, cy - 2 * S);
+    ctx.lineTo(cx,            cy);
+    ctx.lineTo(cx - 2.5 * S, cy + 2 * S);
+    ctx.stroke();
+
+  } else if (zone === ZONE.TINT_MACHINE_BODY) {
+    // Gear: circle + 4 teeth nubs
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.5 * S, 0, Math.PI * 2);
+    ctx.stroke();
+    [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dy]) => {
+      ctx.fillRect(cx + dx * 3.5 * S - 0.9 * S, cy + dy * 3.5 * S - 0.9 * S, 1.8 * S, 1.8 * S);
+    });
+
+  } else if (zone === ZONE.TINT_OUTPUT) {
+    // Box then arrow →
+    ctx.strokeRect(cx - 4 * S, cy - 3 * S, 4 * S, 6 * S);
+    ctx.beginPath();
+    ctx.moveTo(cx,           cy);
+    ctx.lineTo(cx + 5 * S,   cy);
+    ctx.moveTo(cx + 2.5 * S, cy - 2 * S);
+    ctx.lineTo(cx + 5 * S,   cy);
+    ctx.lineTo(cx + 2.5 * S, cy + 2 * S);
+    ctx.stroke();
+
+  } else if (zone === ZONE.SHAKER_A || zone === ZONE.SHAKER_B || zone === ZONE.SHAKER_C) {
+    // Two zigzag lines
+    [-1.8 * S, 1.8 * S].forEach(dy => {
+      ctx.beginPath();
+      ctx.moveTo(cx - 5 * S,   cy + dy);
+      ctx.lineTo(cx - 1.5 * S, cy + dy - 2.2 * S);
+      ctx.lineTo(cx + 1.5 * S, cy + dy + 2.2 * S);
+      ctx.lineTo(cx + 5 * S,   cy + dy);
+      ctx.stroke();
+    });
+
+  } else if (zone === ZONE.PICKUP) {
+    // Checkmark in circle
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4 * S, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - 2.5 * S, cy + 0.5 * S);
+    ctx.lineTo(cx - 0.5 * S, cy + 2.5 * S);
+    ctx.lineTo(cx + 3 * S,   cy - 2.5 * S);
+    ctx.stroke();
+  }
+
+  ctx.lineWidth = 1;
+  ctx.lineCap   = 'butt';
+  ctx.lineJoin  = 'miter';
 }
 
 // ── Util ──────────────────────────────────────────────────────────────────

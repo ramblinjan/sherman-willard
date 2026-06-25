@@ -52,12 +52,12 @@ function gameLoop(timestamp) {
   clear();
   drawTiles(sm.flashZones, sm.shakers, sm.tintMachine, elapsed);
   drawCustomers(sm.allCustomers, customerRemaining);
-  drawPlayer(player);
-  if (player2) drawPlayer(player2, '#ee8822');
+  drawPlayer(player, '#3399ee', elapsed);
+  if (player2) drawPlayer(player2, '#ee8822', elapsed);
 
   // HUD
   updateHUD(sm, player, player2);
-  updateSpeechBubbles(sm.allCustomers);
+  updateSpeechBubbles(sm.allCustomers, dt);
 
   // Day end
   if (sm.dayOver) {
