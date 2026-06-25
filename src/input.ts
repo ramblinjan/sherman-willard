@@ -1,5 +1,18 @@
-export function createInputHandler(upKeys, downKeys, leftKeys, rightKeys, interactKeys) {
-  const keys = {};
+export interface MoveDelta { dx: number; dy: number; }
+
+export interface InputHandler {
+  getMoveDelta(): MoveDelta;
+  consumeInteract(): boolean;
+}
+
+export function createInputHandler(
+  upKeys: string[],
+  downKeys: string[],
+  leftKeys: string[],
+  rightKeys: string[],
+  interactKeys: string[],
+): InputHandler {
+  const keys: Record<string, boolean> = {};
   let interactPressed = false;
 
   const allKeys = new Set([...upKeys, ...downKeys, ...leftKeys, ...rightKeys, ...interactKeys]);
@@ -14,7 +27,7 @@ export function createInputHandler(upKeys, downKeys, leftKeys, rightKeys, intera
     keys[e.key] = false;
   });
 
-  function getMoveDelta() {
+  function getMoveDelta(): MoveDelta {
     let dx = 0, dy = 0;
     if (upKeys.some(k    => keys[k])) dy -= 1;
     if (downKeys.some(k  => keys[k])) dy += 1;
@@ -23,7 +36,7 @@ export function createInputHandler(upKeys, downKeys, leftKeys, rightKeys, intera
     return { dx, dy };
   }
 
-  function consumeInteract() {
+  function consumeInteract(): boolean {
     if (interactPressed) { interactPressed = false; return true; }
     return false;
   }
