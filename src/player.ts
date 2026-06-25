@@ -3,22 +3,15 @@ import type { ZoneId } from './constants';
 import { isWalkable } from './tilemap';
 import { p1Input } from './input';
 import type { InputHandler } from './input';
-import type { BaseType, Order } from './types';
+import type { Item } from './item';
 
 const SPEED = 4.5; // tiles per second
-
-// Transitional inventory shapes — replaced by a unified Item model in A2.
-interface BaseCan { ticketId: number; baseType: BaseType | null; }
-interface SealedCan { ticketId: number; }
-interface MixedCan { ticketId: number; order: Order; }
 
 export class Player {
   x: number;
   y: number;
   input: InputHandler;
-  cans:       BaseCan[]   = [];  // grabbed base, going to tint machine
-  sealedCans: SealedCan[] = [];  // tinted+sealed, going to shaker
-  mixedCans:  MixedCan[]  = [];  // mixed, going to pickup
+  held: Item[] = [];  // everything the player is currently carrying (cans at any stage)
   facingX = 0;
   facingY = 1;
   activeZone: ZoneId | null = null; // set each frame by StoreManager; null = no valid action
@@ -60,13 +53,11 @@ export class Player {
   }
 
   clearItems(): void {
-    this.cans       = [];
-    this.sealedCans = [];
-    this.mixedCans  = [];
+    this.held = [];
   }
 
   get totalHeld(): number {
-    return this.cans.length + this.sealedCans.length + this.mixedCans.length;
+    return this.held.length;
   }
 
   get px(): number { return this.x * TILE; }

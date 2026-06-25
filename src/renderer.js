@@ -487,12 +487,12 @@ export function drawPlayer(player, bodyColor = '#3399ee', elapsed = 0) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Stacked mini-badges for held items
-  const items = [
-    ...(player.cans       || []).map(e => ({ color: e.baseType ? BASE_COLORS[e.baseType] : '#aaa' })),
-    ...(player.sealedCans || []).map(() => ({ color: '#aa66dd' })),
-    ...(player.mixedCans  || []).map(() => ({ color: '#ffe066' })),
-  ];
+  // Stacked mini-badges for held items, colored by pipeline stage
+  const items = (player.held || []).map(e => {
+    if (e.stage === 'sealed') return { color: '#aa66dd' };
+    if (e.stage === 'mixed')  return { color: '#ffe066' };
+    return { color: e.baseType ? BASE_COLORS[e.baseType] : '#aaa' }; // empty / based
+  });
 
   items.forEach((item, i) => {
     const bx = px + 8 * S;

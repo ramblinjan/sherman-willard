@@ -5,6 +5,7 @@ import { getNearbyInteractZone } from './tilemap';
 import { generateOrder } from './order';
 import { Customer } from './customer';
 import { OrderTicket, TICKET_STATUS } from './ticket';
+import { makeCan } from './item';
 import type { Player } from './player';
 import { showPrompt, showCelebration } from './hud';
 import { pickCustomer } from './dialogue';
@@ -145,7 +146,7 @@ export class StoreManager {
     ticket.status = TICKET_STATUS.BASE_GRABBED;
 
     for (let i = 0; i < canCount; i++) {
-      player.cans.push({ ticketId, baseType: null });
+      player.held.push(makeCan(ticketId));
     }
 
     const pickupSlot  = this._freePickupSlots.shift()!;
@@ -159,23 +160,25 @@ export class StoreManager {
   }
 
   private _grabBase(player: Player, grabbed: BaseType, zone: ZoneId): void {
-    const entry = player.cans.find(e => {
+    const entry = player.held.find(e => {
+      if (e.stage !== 'empty') return false;
       const t = this.tickets.get(e.ticketId);
-      return e.baseType === null && t && t.order.baseType === grabbed;
+      return t != null && t.order.baseType === grabbed;
     });
 
     if (entry) {
       entry.baseType = grabbed;
-    } else if (player.cans.some(e => e.baseType === null)) {
+      entry.stage    = 'based';
+    } else if (player.held.some(e => e.stage === 'empty')) {
       this._addFlash(zone);
     }
   }
 
   private _loadTintInput(player: Player): void {
-    const entryIdx = player.cans.findIndex(e => e.baseType !== null);
+    const entryIdx = player.held.findIndex(e => e.stage === 'based');
     if (entryIdx === -1) return;
 
-    const [entry] = player.cans.splice(entryIdx, 1);
+    const [entry] = player.held.splice(entryIdx, 1);
     const ticket  = this.tickets.get(entry.ticketId);
     if (ticket) {
       ticket.status = TICKET_STATUS.TINT_QUEUED;
@@ -196,7 +199,10 @@ export class StoreManager {
     const ticketId = tm.outputQueue.shift()!;
     const ticket   = this.tickets.get(ticketId);
     if (ticket) ticket.status = TICKET_STATUS.SEALED;
-    player.sealedCans.push({ ticketId });
+    const sealed = makeCan(ticketId);
+    sealed.stage    = 'sealed';
+    sealed.baseType = ticket ? ticket.order.baseType : null;
+    player.held.push(sealed);
     tm.bangTimer = 0.6;
   }
 
@@ -206,7 +212,10 @@ export class StoreManager {
     if (shaker.status === 'ready') {
       const ticket = this.tickets.get(shaker.ticketId!);
       if (ticket) {
-        player.mixedCans.push({ ticketId: shaker.ticketId!, order: ticket.order });
+        const mixed = makeCan(shaker.ticketId!);
+        mixed.stage    = 'mixed';
+        mixed.baseType = ticket.order.baseType;
+        player.held.push(mixed);
         ticket.status = TICKET_STATUS.AT_PICKUP;
       }
       shaker.ticketId = null;
@@ -215,9 +224,10 @@ export class StoreManager {
       return;
     }
 
-    if (shaker.status === 'idle' && player.sealedCans.length > 0) {
-      const entry  = player.sealedCans.shift()!;
-      const ticket = this.tickets.get(entry.ticketId);
+    const sealedIdx = player.held.findIndex(e => e.stage === 'sealed');
+    if (shaker.status === 'idle' && sealedIdx !== -1) {
+      const [entry] = player.held.splice(sealedIdx, 1);
+      const ticket  = this.tickets.get(entry.ticketId);
       if (!ticket) return;
 
       shaker.ticketId = entry.ticketId;
@@ -229,10 +239,10 @@ export class StoreManager {
   }
 
   private _deliverPaint(player: Player): void {
-    const idx = player.mixedCans.findIndex(e => this.atPickup.includes(e.ticketId));
+    const idx = player.held.findIndex(e => e.stage === 'mixed' && this.atPickup.includes(e.ticketId));
     if (idx === -1) return;
 
-    const { ticketId } = player.mixedCans.splice(idx, 1)[0];
+    const { ticketId } = player.held.splice(idx, 1)[0];
     const ticket = this.tickets.get(ticketId);
     if (!ticket) return;
 
@@ -344,7 +354,7 @@ export class StoreManager {
         player.activeZone = zone;
         return;
       }
-      if (player.sealedCans.length > 0) {
+      if (player.held.some(e => e.stage === 'sealed')) {
         if (isPrimary) showPrompt('Load Shaker');
         player.activeZone = zone;
       } else {
@@ -369,9 +379,10 @@ export class StoreManager {
 
     if (zone === ZONE.SHELF_WHITE || zone === ZONE.SHELF_GRAY || zone === ZONE.SHELF_DEEP) {
       const baseNeeded: BaseType = { SHELF_WHITE: 'WHITE', SHELF_GRAY: 'GRAY', SHELF_DEEP: 'DEEP' }[zone] as BaseType;
-      const canGrab = player.cans.some(e => {
+      const canGrab = player.held.some(e => {
+        if (e.stage !== 'empty') return false;
         const t = this.tickets.get(e.ticketId);
-        return e.baseType === null && t && t.order.baseType === baseNeeded;
+        return t != null && t.order.baseType === baseNeeded;
       });
       const labels = { SHELF_WHITE: 'Grab White Base', SHELF_GRAY: 'Grab Gray Base', SHELF_DEEP: 'Grab Deep Base' };
       if (canGrab) {
@@ -384,7 +395,7 @@ export class StoreManager {
     }
 
     if (zone === ZONE.TINT_INPUT) {
-      if (player.cans.some(e => e.baseType !== null)) {
+      if (player.held.some(e => e.stage === 'based')) {
         if (isPrimary) showPrompt('Load Tinter');
         player.activeZone = zone;
       } else {
@@ -420,7 +431,7 @@ export class StoreManager {
     }
 
     if (zone === ZONE.PICKUP) {
-      const canDeliver = player.mixedCans.some(e => this.atPickup.includes(e.ticketId));
+      const canDeliver = player.held.some(e => e.stage === 'mixed' && this.atPickup.includes(e.ticketId));
       if (canDeliver) {
         if (isPrimary) showPrompt('Hand Off Paint');
         player.activeZone = zone;

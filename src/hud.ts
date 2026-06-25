@@ -124,11 +124,9 @@ function _updateWorkingBlock(sm: StoreManager, player: Player | null, elementId:
   const taskEl = el(elementId);
   if (!player) { taskEl.classList.add('hidden'); return; }
 
-  const allActive: ActiveItem[] = [
-    ...player.cans.map(e => ({ ticketId: e.ticketId, baseType: e.baseType, stage: 'base' })),
-    ...player.sealedCans.map(e => ({ ticketId: e.ticketId, stage: 'sealed' })),
-    ...player.mixedCans.map(e => ({ ticketId: e.ticketId, stage: 'deliver' })),
-  ];
+  const allActive: ActiveItem[] = player.held.map(e => ({
+    ticketId: e.ticketId, baseType: e.baseType, stage: e.stage,
+  }));
 
   if (allActive.length === 0) { taskEl.classList.add('hidden'); return; }
 
@@ -139,7 +137,7 @@ function _updateWorkingBlock(sm: StoreManager, player: Player | null, elementId:
     if (!ticket) continue;
     const name = ticket.order.customerName.split(' ').pop();
     let status: string;
-    if (item.stage === 'base') {
+    if (item.stage === 'empty' || item.stage === 'based') {
       status = item.baseType ? `${item.baseType} → tinter` : `need ${ticket.order.baseType}`;
     } else if (item.stage === 'sealed') {
       status = 'sealed → shaker';
