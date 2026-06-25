@@ -1,23 +1,35 @@
-import { TILE, COLS, ROWS } from './constants.js';
-import { isWalkable } from './tilemap.js';
-import { p1Input } from './input.js';
+import { TILE, COLS, ROWS } from './constants';
+import type { ZoneId } from './constants';
+import { isWalkable } from './tilemap';
+import { p1Input } from './input';
+import type { InputHandler } from './input';
+import type { BaseType, Order } from './types';
 
 const SPEED = 4.5; // tiles per second
 
+// Transitional inventory shapes — replaced by a unified Item model in A2.
+interface BaseCan { ticketId: number; baseType: BaseType | null; }
+interface SealedCan { ticketId: number; }
+interface MixedCan { ticketId: number; order: Order; }
+
 export class Player {
-  constructor(x = 9, y = 9, inputHandler = p1Input) {
+  x: number;
+  y: number;
+  input: InputHandler;
+  cans:       BaseCan[]   = [];  // grabbed base, going to tint machine
+  sealedCans: SealedCan[] = [];  // tinted+sealed, going to shaker
+  mixedCans:  MixedCan[]  = [];  // mixed, going to pickup
+  facingX = 0;
+  facingY = 1;
+  activeZone: ZoneId | null = null; // set each frame by StoreManager; null = no valid action
+
+  constructor(x = 9, y = 9, inputHandler: InputHandler = p1Input) {
     this.x = x;
     this.y = y;
     this.input = inputHandler;
-    this.cans       = [];  // { ticketId, baseType } — grabbed base, going to tint machine
-    this.sealedCans = [];  // { ticketId }           — tinted+sealed, going to shaker
-    this.mixedCans  = [];  // { ticketId, order }    — mixed, going to pickup
-    this.facingX = 0;
-    this.facingY = 1;
-    this.activeZone = null; // set each frame by StoreManager; null = no valid action
   }
 
-  update(dt) {
+  update(dt: number): void {
     const { dx, dy } = this.input.getMoveDelta();
 
     if (dx !== 0 || dy !== 0) {
@@ -37,7 +49,7 @@ export class Player {
 
   }
 
-  _canMove(tx, ty) {
+  private _canMove(tx: number, ty: number): boolean {
     const margin = 0.35;
     return [
       [tx - margin, ty - margin],
@@ -47,16 +59,16 @@ export class Player {
     ].every(([cx, cy]) => isWalkable(Math.floor(cx), Math.floor(cy)));
   }
 
-  clearItems() {
+  clearItems(): void {
     this.cans       = [];
     this.sealedCans = [];
     this.mixedCans  = [];
   }
 
-  get totalHeld() {
+  get totalHeld(): number {
     return this.cans.length + this.sealedCans.length + this.mixedCans.length;
   }
 
-  get px() { return this.x * TILE; }
-  get py() { return this.y * TILE; }
+  get px(): number { return this.x * TILE; }
+  get py(): number { return this.y * TILE; }
 }

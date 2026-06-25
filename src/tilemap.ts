@@ -1,4 +1,6 @@
-import { ZONE, COLS, ROWS } from './constants.js';
+import { ZONE, COLS, ROWS } from './constants';
+import type { ZoneId } from './constants';
+import type { Point, Rect } from './types';
 
 const W  = ZONE.WALL;
 const WF = ZONE.WAREHOUSE_FLOOR;
@@ -20,7 +22,7 @@ const SF = ZONE.STOREFRONT;
 
 // 15 rows × 20 cols
 // prettier-ignore
-const MAP = [
+const MAP: ZoneId[][] = [
   //0   1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16   17   18   19
   [WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF,  WF], // row 0
   [WF,  WF,  WF,  SW,  SW,  SW,  SW,  WF,  SG,  SG,  SG,  SG,  WF,  SD,  SD,  SD,  SD,  WF,  WF,  WF], // row 1 — shelves shifted right 2
@@ -39,13 +41,13 @@ const MAP = [
   [SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF,  SF], // row 14
 ];
 
-const WALKABLE = new Set([
+const WALKABLE: Set<ZoneId> = new Set([
   ZONE.WAREHOUSE_FLOOR, ZONE.DOORWAY, ZONE.MAIN_FLOOR,
   ZONE.REGISTER, ZONE.PICKUP,
 ]);
 
 // Rug tile regions — authoritative source for both rendering and hot zone detection
-export const RUGS = [
+export const RUGS: (Rect & { zone: ZoneId })[] = [
   { col: 3,  row: 10, w: 3, h: 2, zone: ZONE.REGISTER },
   { col: 14, row: 10, w: 3, h: 2, zone: ZONE.PICKUP },
   { col: 3,  row: 8,  w: 2, h: 1, zone: ZONE.SHAKER_A },
@@ -59,7 +61,7 @@ export const RUGS = [
   { col: 13, row: 4,  w: 4, h: 1, zone: ZONE.SHELF_DEEP },
 ];
 
-export const INTERACT_POINTS = {
+export const INTERACT_POINTS: Partial<Record<ZoneId, Point>> = {
   [ZONE.REGISTER]:          { x: 4,    y: 11   },
   [ZONE.PICKUP]:            { x: 15,   y: 11   },
   // Shelves shifted right 2
@@ -77,16 +79,16 @@ export const INTERACT_POINTS = {
   [ZONE.SHAKER_C]:          { x: 7.5,  y: 8    },
 };
 
-export function getZone(col, row) {
+export function getZone(col: number, row: number): ZoneId {
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return ZONE.WALL;
   return MAP[row][col];
 }
 
-export function isWalkable(col, row) {
+export function isWalkable(col: number, row: number): boolean {
   return WALKABLE.has(getZone(col, row));
 }
 
-export function getNearbyInteractZone(px, py) {
+export function getNearbyInteractZone(px: number, py: number): ZoneId | null {
   const col = Math.floor(px);
   const row = Math.floor(py);
   for (const rug of RUGS) {
