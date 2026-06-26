@@ -1,16 +1,12 @@
 import { TINT_DURATIONS, DAY_DURATION } from './constants';
 import type { ZoneId } from './constants';
-import { generateOrder } from './order';
-import { Customer } from './customer';
-import { OrderTicket, TICKET_STATUS } from './ticket';
+import { TICKET_STATUS, type OrderTicket } from './ticket';
+import type { Customer } from './customer';
 import type { Player } from './player';
 import { showPrompt, showCelebration } from './hud';
-import { pickCustomer } from './dialogue';
 import { currentLevel } from './level';
+import { Spawner } from './spawner';
 import type { Station } from './stations';
-
-const MAX_QUEUE      = 6;
-const SPAWN_INTERVAL = 8;
 
 // ── Machine + effect state shapes ──────────────────────────────────────────
 export type ShakerStatus = 'idle' | 'shaking' | 'ready';
@@ -58,8 +54,7 @@ export class StoreManager {
   celebrationTimer = 0;
   readonly stations: Station[] = currentLevel().stations;
 
-  private _ticketSeq  = 0;
-  private _spawnTimer = 1.0;
+  private spawner = new Spawner();
 
   // ── Main update ──────────────────────────────────────────────────────────
 
@@ -72,7 +67,7 @@ export class StoreManager {
     this._updateFlashes(dt);
     this._tickShakers(dt);
     this._tickTintMachine(dt);
-    if (!this.dayOver) this._tickSpawn(dt);
+    if (!this.dayOver) this.spawner.tick(dt, this);
 
     if (this.celebrationTimer > 0) {
       this.celebrationTimer -= dt;
@@ -124,28 +119,6 @@ export class StoreManager {
   addFlash(zone: ZoneId): void {
     this.flashZones = this.flashZones.filter(f => f.zone !== zone);
     this.flashZones.push({ zone, alpha: 0.55, timer: 0.5 });
-  }
-
-  // ── Private: spawning ────────────────────────────────────────────────────
-
-  private _tickSpawn(dt: number): void {
-    this._spawnTimer -= dt;
-    if (this._spawnTimer > 0) return;
-    this._spawnTimer = SPAWN_INTERVAL;
-
-    if (this.queue.length >= MAX_QUEUE) return;
-
-    const slot     = this.queue.length;
-    const order    = generateOrder();
-    const customer = new Customer();
-    const id       = ++this._ticketSeq;
-    const ticket   = new OrderTicket(id, customer, order);
-    ticket.queueSlot = slot;
-
-    customer.arrive(order, pickCustomer(), slot);
-    this.tickets.set(id, ticket);
-    this.queue.push(id);
-    this.requestLine(ticket);
   }
 
   // ── Private: shakers ─────────────────────────────────────────────────────
