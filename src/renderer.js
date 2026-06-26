@@ -1,5 +1,5 @@
 import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants';
-import { MAP, RUGS, INTERACT_POINTS, isWalkable } from './tilemap';
+import { currentLevel } from './level';
 
 const S = TILE / 32; // scale factor relative to original 32px tile size
 
@@ -23,9 +23,10 @@ export function clear() {
 
 // tintMachine: sm.tintMachine state; elapsed: total elapsed seconds
 export function drawTiles(flashZones, shakersState, tintMachine, elapsed) {
+  const grid = currentLevel().grid;
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
-      const zone  = MAP[row][col];
+      const zone  = grid[row][col];
       const x     = col * TILE;
       const y     = row * TILE;
       ctx.fillStyle = TILE_COLORS[zone] ?? '#555';
@@ -68,7 +69,7 @@ const ZONE_COLORS = {
 
 
 function _drawInteractRugs() {
-  for (const { col, row, w, h, zone } of RUGS) {
+  for (const { col, row, w, h, zone } of currentLevel().rugs) {
     const rgb = ZONE_COLORS[zone];
     if (!rgb) continue;
     const x = col * TILE, y = row * TILE;

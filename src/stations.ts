@@ -1,12 +1,14 @@
 import { ZONE, SHAKE_DURATIONS, MAX_CARRY, CELEBRATION_TIME } from './constants';
 import type { ZoneId } from './constants';
 import type { BaseType, Rect } from './types';
-import { RUGS } from './tilemap';
 import { TICKET_STATUS } from './ticket';
 import { makeCan } from './item';
 import { showCelebration } from './hud';
 import type { Player } from './player';
 import type { StoreManager } from './storemanager';
+
+// A rug footprint tagged with the zone it serves — the input to buildStations().
+export interface RugDef extends Rect { zone: ZoneId; }
 
 // What a station tells the HUD to show when a player stands on it.
 // A non-null prompt also means "this station is active" → the player gets the
@@ -31,7 +33,7 @@ const rectOf = (r: { col: number; row: number; w: number; h: number }): Rect =>
 
 // ── Register ────────────────────────────────────────────────────────────────
 
-function makeRegister(rug: typeof RUGS[number]): Station {
+function makeRegister(rug: RugDef): Station {
   return {
     id: 'register', type: 'register', zone: rug.zone, footprint: rectOf(rug),
 
@@ -74,7 +76,7 @@ const SHELF_LABEL: Record<BaseType, string> = {
   WHITE: 'Grab White Base', GRAY: 'Grab Gray Base', DEEP: 'Grab Deep Base',
 };
 
-function makeShelf(rug: typeof RUGS[number], baseType: BaseType): Station {
+function makeShelf(rug: RugDef, baseType: BaseType): Station {
   return {
     id: `shelf-${baseType}`, type: 'shelf', zone: rug.zone, footprint: rectOf(rug),
 
@@ -105,7 +107,7 @@ function makeShelf(rug: typeof RUGS[number], baseType: BaseType): Station {
 
 // ── Tinter: input / body / output (share sm.tintMachine) ──────────────────────
 
-function makeTintInput(rug: typeof RUGS[number]): Station {
+function makeTintInput(rug: RugDef): Station {
   return {
     id: 'tint-input', type: 'tint-input', zone: rug.zone, footprint: rectOf(rug),
 
@@ -126,7 +128,7 @@ function makeTintInput(rug: typeof RUGS[number]): Station {
   };
 }
 
-function makeTintBody(rug: typeof RUGS[number]): Station {
+function makeTintBody(rug: RugDef): Station {
   return {
     id: 'tint-body', type: 'tint-body', zone: rug.zone, footprint: rectOf(rug),
 
@@ -144,7 +146,7 @@ function makeTintBody(rug: typeof RUGS[number]): Station {
   };
 }
 
-function makeTintOutput(rug: typeof RUGS[number]): Station {
+function makeTintOutput(rug: RugDef): Station {
   return {
     id: 'tint-output', type: 'tint-output', zone: rug.zone, footprint: rectOf(rug),
 
@@ -171,7 +173,7 @@ function makeTintOutput(rug: typeof RUGS[number]): Station {
 
 // ── Shaker A / B / C (each owns one slot of sm.shakers) ───────────────────────
 
-function makeShaker(rug: typeof RUGS[number], index: number): Station {
+function makeShaker(rug: RugDef, index: number): Station {
   return {
     id: `shaker-${index}`, type: 'shaker', zone: rug.zone, footprint: rectOf(rug),
 
@@ -222,7 +224,7 @@ function makeShaker(rug: typeof RUGS[number], index: number): Station {
 
 // ── Pickup ────────────────────────────────────────────────────────────────────
 
-function makePickup(rug: typeof RUGS[number]): Station {
+function makePickup(rug: RugDef): Station {
   return {
     id: 'pickup', type: 'pickup', zone: rug.zone, footprint: rectOf(rug),
 
@@ -266,11 +268,11 @@ const SHELF_BASE: Partial<Record<ZoneId, BaseType>> = {
   [ZONE.SHELF_WHITE]: 'WHITE', [ZONE.SHELF_GRAY]: 'GRAY', [ZONE.SHELF_DEEP]: 'DEEP',
 };
 
-// Build the store's stations from the rug footprints. A4 will move this into a
-// per-level definition; for now the single store is derived from RUGS.
-export function buildStations(): Station[] {
+// Build a level's stations from its rug footprints (one station per rug,
+// behavior chosen by the rug's zone).
+export function buildStations(rugs: RugDef[]): Station[] {
   const stations: Station[] = [];
-  for (const rug of RUGS) {
+  for (const rug of rugs) {
     const shelfBase = SHELF_BASE[rug.zone];
     const shakerIdx = SHAKER_ZONES.indexOf(rug.zone);
     if (rug.zone === ZONE.REGISTER)               stations.push(makeRegister(rug));

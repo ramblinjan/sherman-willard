@@ -1,6 +1,6 @@
 import { TILE, COLS, ROWS } from './constants';
 import type { ZoneId } from './constants';
-import { isWalkable } from './tilemap';
+import { currentLevel } from './level';
 import { p1Input } from './input';
 import type { InputHandler } from './input';
 import type { Item } from './item';
@@ -49,7 +49,7 @@ export class Player {
       [tx + margin, ty - margin],
       [tx - margin, ty + margin],
       [tx + margin, ty + margin],
-    ].every(([cx, cy]) => isWalkable(Math.floor(cx), Math.floor(cy)));
+    ].every(([cx, cy]) => currentLevel().isWalkable(Math.floor(cx), Math.floor(cy)));
   }
 
   clearItems(): void {

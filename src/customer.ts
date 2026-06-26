@@ -1,18 +1,9 @@
 import { TILE } from './constants';
-import type { Point, Order } from './types';
+import type { Order } from './types';
 import type { CustomerCharacter } from './dialogue';
+import { currentLevel } from './level';
 
 const WALK_SPEED = 3.5; // tiles per second
-
-export const QUEUE_POSITIONS: Point[] = [
-  { x: 4, y: 13 }, { x: 6, y: 13 }, { x: 8, y: 13 },  // front row
-  { x: 4, y: 14 }, { x: 6, y: 14 }, { x: 8, y: 14 },  // back row
-];
-export const PICKUP_POSITIONS: Point[] = [
-  { x: 12, y: 13 }, { x: 14, y: 13 }, { x: 16, y: 13 },
-  { x: 12, y: 14 }, { x: 14, y: 14 }, { x: 16, y: 14 },
-];
-const EXIT_TILE: Point = { x: 21.5, y: 13 };
 
 export type CustomerState =
   'OFFSCREEN' | 'WALKING_IN' | 'WAITING' | 'WALKING_OUT' | 'GONE';
@@ -36,7 +27,7 @@ export class Customer {
     this.lines = character?.lines ?? [];
     this.reqId++;
     this.speech = { state: 'hidden' };
-    const pos = QUEUE_POSITIONS[queueSlot];
+    const pos = currentLevel().queuePositions[queueSlot];
     this.x = pos.x;
     this.y = 15.5;
     this._targetX = pos.x;
@@ -46,7 +37,7 @@ export class Customer {
 
   // Shift one slot forward in the queue (called when front slot is taken).
   advanceQueue(newSlot: number): void {
-    const pos = QUEUE_POSITIONS[newSlot];
+    const pos = currentLevel().queuePositions[newSlot];
     this._targetX = pos.x;
     this._targetY = pos.y;
     if (this.state === 'WAITING') this.state = 'WALKING_IN';
@@ -54,7 +45,7 @@ export class Customer {
 
   // After order taken — walk from queue position to a pickup waiting slot.
   moveToPickup(pickupSlot: number): void {
-    const pos = PICKUP_POSITIONS[pickupSlot];
+    const pos = currentLevel().pickupPositions[pickupSlot];
     this._targetX = pos.x;
     this._targetY = pos.y;
     this.state = 'WALKING_IN';
@@ -62,8 +53,9 @@ export class Customer {
 
   leave(): void {
     this.speech = { text: '', state: 'hidden' };
-    this._targetX = EXIT_TILE.x;
-    this._targetY = EXIT_TILE.y;
+    const exit = currentLevel().exit;
+    this._targetX = exit.x;
+    this._targetY = exit.y;
     this.state = 'WALKING_OUT';
   }
 

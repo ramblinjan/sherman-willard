@@ -6,7 +6,7 @@ import { OrderTicket, TICKET_STATUS } from './ticket';
 import type { Player } from './player';
 import { showPrompt, showCelebration } from './hud';
 import { pickCustomer } from './dialogue';
-import { buildStations } from './stations';
+import { currentLevel } from './level';
 import type { Station } from './stations';
 
 const MAX_QUEUE      = 6;
@@ -56,7 +56,7 @@ export class StoreManager {
   // Public model state that stations operate on.
   freePickupSlots: number[] = [0, 1, 2, 3, 4, 5];
   celebrationTimer = 0;
-  readonly stations: Station[] = buildStations();
+  readonly stations: Station[] = currentLevel().stations;
 
   private _ticketSeq  = 0;
   private _spawnTimer = 1.0;
