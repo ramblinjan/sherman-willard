@@ -5,6 +5,10 @@ export const DAY_DURATION = 360; // seconds per shift
 export const COLS = 20;
 export const ROWS = 15;
 
+// Gameplay tuning
+export const MAX_CARRY = 3;          // max cans a player can hold at once
+export const CELEBRATION_TIME = 2.0; // seconds the "Order Complete!" banner shows
+
 export const ZONE = {
   WAREHOUSE_FLOOR: 'WAREHOUSE_FLOOR',
   SHELF_WHITE:     'SHELF_WHITE',
