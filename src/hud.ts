@@ -1,18 +1,29 @@
-import { TILE, COLS, DAY_DURATION } from './constants.js';
+import { TILE, COLS, DAY_DURATION } from './constants';
+import type { BaseType } from './types';
+import type { StoreManager } from './storemanager';
+import type { Player } from './player';
+import type { Customer } from './customer';
 
-const el = id => document.getElementById(id);
+const el = (id: string): HTMLElement => document.getElementById(id)!;
 const CONTAINER = COLS * TILE; // canvas width in px
 
 // Two independent speech bubble groups: queue (register line) and pickup
-const _bubbleState = {
+type BubbleKey = 'queue' | 'pickup';
+interface BubbleState {
+  target: Customer | null;
+  timer: number;
+  duration: number;
+  currentText: string;
+}
+const _bubbleState: Record<BubbleKey, BubbleState> = {
   queue:  { target: null, timer: 0, duration: 12, currentText: '' },
   pickup: { target: null, timer: 0, duration: 12, currentText: '' },
 };
 // customer → { reqId, lineIndex } — tracks how many lines shown this visit (max 3)
-const _spokenMap = new Map();
+const _spokenMap = new Map<Customer, { reqId: number; lineIndex: number }>();
 
-export function updateHUD(sm, player, player2 = null) {
-  el('score').textContent = sm.score;
+export function updateHUD(sm: StoreManager, player: Player, player2: Player | null = null): void {
+  el('score').textContent = String(sm.score);
   _updateDayBanner(sm);
   _updateQueuePanels(sm, !!player2);
   _updateLeftMirrors(sm, !!player2);
@@ -21,13 +32,13 @@ export function updateHUD(sm, player, player2 = null) {
   _updateRightPanel(sm);
 }
 
-function _updateDayBanner(sm) {
+function _updateDayBanner(sm: StoreManager): void {
   const progress = Math.min(sm.dayTimer / DAY_DURATION, 1);
   const sun = el('day-sun');
   if (sun) sun.style.left = `calc(${progress * 100}% - 7px)`;
 }
 
-function _updateQueuePanels(sm, p2Active) {
+function _updateQueuePanels(sm: StoreManager, p2Active: boolean): void {
   // Build queue HTML once, apply to both panels
   let html = '';
   sm.queueTickets.forEach(t => {
@@ -47,7 +58,7 @@ function _updateQueuePanels(sm, p2Active) {
   if (p2Active) el('queue-list-right').innerHTML = html;
 }
 
-function _updateLeftMirrors(sm, p2Active) {
+function _updateLeftMirrors(sm: StoreManager, p2Active: boolean): void {
   el('left-mirrors').classList.toggle('hidden', !p2Active);
 
   // Tinter
@@ -61,15 +72,15 @@ function _updateLeftMirrors(sm, p2Active) {
       const shaker = sm.shakers[i];
       const div = document.createElement('div');
       div.className = 'shaker-row';
-      let statusText, statusClass;
+      let statusText: string, statusClass: string;
       if (shaker.status === 'idle') {
         statusText = '—'; statusClass = 'sh-idle';
       } else if (shaker.status === 'shaking') {
-        const ticket = sm.tickets.get(shaker.ticketId);
+        const ticket = sm.tickets.get(shaker.ticketId!);
         const name = ticket ? ticket.order.customerName.split(' ').pop() : '?';
         statusText = `${name} ${Math.ceil(shaker.timer)}s`; statusClass = 'sh-shaking';
       } else {
-        const ticket = sm.tickets.get(shaker.ticketId);
+        const ticket = sm.tickets.get(shaker.ticketId!);
         const name = ticket ? ticket.order.customerName.split(' ').pop() : '?';
         statusText = `${name} READY`; statusClass = 'sh-ready';
       }
@@ -97,7 +108,7 @@ function _updateLeftMirrors(sm, p2Active) {
   }
 }
 
-function _tinterHTML(sm) {
+function _tinterHTML(sm: StoreManager): string {
   const tm = sm.tintMachine;
   const hasActivity = tm.inputQueue.length > 0 || tm.processing || tm.outputQueue.length > 0;
   if (!hasActivity) return '<span class="queue-empty">—</span>';
@@ -107,15 +118,15 @@ function _tinterHTML(sm) {
   return `<span class="tint-in">In:${tm.inputQueue.length}</span> → ${proc} → <span class="tint-out">Out:${tm.outputQueue.length}</span>`;
 }
 
-function _updateWorkingBlock(sm, player, elementId, label) {
+interface ActiveItem { ticketId: number; baseType?: BaseType | null; stage: string; }
+
+function _updateWorkingBlock(sm: StoreManager, player: Player | null, elementId: string, label: string): void {
   const taskEl = el(elementId);
   if (!player) { taskEl.classList.add('hidden'); return; }
 
-  const allActive = [
-    ...(player.cans       || []).map(e => ({ ticketId: e.ticketId, baseType: e.baseType, stage: 'base' })),
-    ...(player.sealedCans || []).map(e => ({ ticketId: e.ticketId, stage: 'sealed' })),
-    ...(player.mixedCans  || []).map(e => ({ ticketId: e.ticketId, stage: 'deliver' })),
-  ];
+  const allActive: ActiveItem[] = player.held.map(e => ({
+    ticketId: e.ticketId, baseType: e.baseType, stage: e.stage,
+  }));
 
   if (allActive.length === 0) { taskEl.classList.add('hidden'); return; }
 
@@ -125,8 +136,8 @@ function _updateWorkingBlock(sm, player, elementId, label) {
     const ticket = sm.tickets.get(item.ticketId);
     if (!ticket) continue;
     const name = ticket.order.customerName.split(' ').pop();
-    let status;
-    if (item.stage === 'base') {
+    let status: string;
+    if (item.stage === 'empty' || item.stage === 'based') {
       status = item.baseType ? `${item.baseType} → tinter` : `need ${ticket.order.baseType}`;
     } else if (item.stage === 'sealed') {
       status = 'sealed → shaker';
@@ -140,7 +151,7 @@ function _updateWorkingBlock(sm, player, elementId, label) {
   }
 }
 
-function _updateRightPanel(sm) {
+function _updateRightPanel(sm: StoreManager): void {
   // Tinter status (main)
   el('tinter-status').innerHTML = _tinterHTML(sm);
 
@@ -152,17 +163,17 @@ function _updateRightPanel(sm) {
     const div = document.createElement('div');
     div.className = 'shaker-row';
 
-    let statusText, statusClass;
+    let statusText: string, statusClass: string;
     if (shaker.status === 'idle') {
       statusText  = '—';
       statusClass = 'sh-idle';
     } else if (shaker.status === 'shaking') {
-      const ticket = sm.tickets.get(shaker.ticketId);
+      const ticket = sm.tickets.get(shaker.ticketId!);
       const name   = ticket ? ticket.order.customerName.split(' ').pop() : '?';
       statusText  = `${name} ${Math.ceil(shaker.timer)}s`;
       statusClass = 'sh-shaking';
     } else {
-      const ticket = sm.tickets.get(shaker.ticketId);
+      const ticket = sm.tickets.get(shaker.ticketId!);
       const name   = ticket ? ticket.order.customerName.split(' ').pop() : '?';
       statusText  = `${name} READY`;
       statusClass = 'sh-ready';
@@ -190,17 +201,17 @@ function _updateRightPanel(sm) {
   }
 }
 
-export function showDayEnd(sm) {
+export function showDayEnd(sm: StoreManager): void {
   el('day-stat-customers').textContent = `Customers served: ${sm.score}`;
   el('day-stat-gallons').textContent   = `Gallons sold: ${sm.gallonsSold}`;
   el('day-end').classList.remove('hidden');
 }
 
-export function hideDayEnd() {
+export function hideDayEnd(): void {
   el('day-end').classList.add('hidden');
 }
 
-export function showPrompt(text, showKey = true) {
+export function showPrompt(text: string | null, showKey = true): void {
   const p = el('interact-prompt');
   if (text) {
     p.classList.remove('hidden');
@@ -211,16 +222,16 @@ export function showPrompt(text, showKey = true) {
   }
 }
 
-export function showCelebration(show) {
+export function showCelebration(show: boolean): void {
   el('celebration').classList.toggle('hidden', !show);
 }
 
-export function updateSpeechBubbles(queueCustomers, pickupCustomers, dt = 0) {
+export function updateSpeechBubbles(queueCustomers: Customer[], pickupCustomers: Customer[], dt = 0): void {
   _tickBubble(el('speech-bubble'),   el('speech-text'),   queueCustomers,  dt, 'queue');
   _tickBubble(el('speech-bubble-2'), el('speech-text-2'), pickupCustomers, dt, 'pickup');
 }
 
-function _tickBubble(bubble, textEl, customers, dt, key) {
+function _tickBubble(bubble: HTMLElement, textEl: HTMLElement, customers: Customer[], dt: number, key: BubbleKey): void {
   const state = _bubbleState[key];
 
   const targetValid = state.target
@@ -288,6 +299,6 @@ function _tickBubble(bubble, textEl, customers, dt, key) {
   bubble.style.top  = top + 'px';
 }
 
-export function hideStartScreen() {
+export function hideStartScreen(): void {
   el('start-screen').classList.add('hidden');
 }

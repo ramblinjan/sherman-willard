@@ -1,37 +1,33 @@
-import { TILE } from './constants.js';
+import { TILE } from './constants';
+import type { Order } from './types';
+import type { CustomerCharacter } from './dialogue';
+import { currentLevel } from './level';
 
 const WALK_SPEED = 3.5; // tiles per second
 
-export const QUEUE_POSITIONS = [
-  { x: 4, y: 13 }, { x: 6, y: 13 }, { x: 8, y: 13 },  // front row
-  { x: 4, y: 14 }, { x: 6, y: 14 }, { x: 8, y: 14 },  // back row
-];
-export const PICKUP_POSITIONS = [
-  { x: 12, y: 13 }, { x: 14, y: 13 }, { x: 16, y: 13 },
-  { x: 12, y: 14 }, { x: 14, y: 14 }, { x: 16, y: 14 },
-];
-const EXIT_TILE  = { x: 21.5, y: 13 };
+export type CustomerState =
+  'OFFSCREEN' | 'WALKING_IN' | 'WAITING' | 'WALKING_OUT' | 'GONE';
+
+export interface Speech { state: 'hidden' | 'shown'; text?: string; }
 
 export class Customer {
-  constructor() {
-    this.x = 0;
-    this.y = 16;
-    this.state = 'OFFSCREEN'; // OFFSCREEN | WALKING_IN | WAITING | WALKING_OUT | GONE
-    this.currentOrder = null;
-    this.lines = []; // 3 sequential lines: [intro, funny, impatient]
-    this.speech = { state: 'hidden' }; // hidden | shown
-    this.reqId = 0; // bumped each arrival; guards stale dialogue
-    this._targetX = 0;
-    this._targetY = 16;
-  }
+  x = 0;
+  y = 16;
+  state: CustomerState = 'OFFSCREEN';
+  currentOrder: Order | null = null;
+  lines: string[] = []; // 3 sequential lines: [intro, funny, impatient]
+  speech: Speech = { state: 'hidden' };
+  reqId = 0; // bumped each arrival; guards stale dialogue
+  private _targetX = 0;
+  private _targetY = 16;
 
   // Spawn off-screen below the queue slot and walk up to it.
-  arrive(order, character, queueSlot) {
+  arrive(order: Order, character: CustomerCharacter, queueSlot: number): void {
     this.currentOrder = order;
     this.lines = character?.lines ?? [];
     this.reqId++;
     this.speech = { state: 'hidden' };
-    const pos = QUEUE_POSITIONS[queueSlot];
+    const pos = currentLevel().queuePositions[queueSlot];
     this.x = pos.x;
     this.y = 15.5;
     this._targetX = pos.x;
@@ -40,35 +36,36 @@ export class Customer {
   }
 
   // Shift one slot forward in the queue (called when front slot is taken).
-  advanceQueue(newSlot) {
-    const pos = QUEUE_POSITIONS[newSlot];
+  advanceQueue(newSlot: number): void {
+    const pos = currentLevel().queuePositions[newSlot];
     this._targetX = pos.x;
     this._targetY = pos.y;
     if (this.state === 'WAITING') this.state = 'WALKING_IN';
   }
 
   // After order taken — walk from queue position to a pickup waiting slot.
-  moveToPickup(pickupSlot) {
-    const pos = PICKUP_POSITIONS[pickupSlot];
+  moveToPickup(pickupSlot: number): void {
+    const pos = currentLevel().pickupPositions[pickupSlot];
     this._targetX = pos.x;
     this._targetY = pos.y;
     this.state = 'WALKING_IN';
   }
 
-  leave() {
+  leave(): void {
     this.speech = { text: '', state: 'hidden' };
-    this._targetX = EXIT_TILE.x;
-    this._targetY = EXIT_TILE.y;
+    const exit = currentLevel().exit;
+    this._targetX = exit.x;
+    this._targetY = exit.y;
     this.state = 'WALKING_OUT';
   }
 
-  update(dt) {
+  update(dt: number): void {
     if (this.state === 'WALKING_IN' || this.state === 'WALKING_OUT') {
       this._moveToward(dt);
     }
   }
 
-  _moveToward(dt) {
+  private _moveToward(dt: number): void {
     const dx = this._targetX - this.x;
     const dy = this._targetY - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -83,10 +80,10 @@ export class Customer {
     this.y += (dy / dist) * step;
   }
 
-  get visible() {
+  get visible(): boolean {
     return this.state !== 'OFFSCREEN' && this.state !== 'GONE';
   }
 
-  get px() { return this.x * TILE; }
-  get py() { return this.y * TILE; }
+  get px(): number { return this.x * TILE; }
+  get py(): number { return this.y * TILE; }
 }

@@ -2,7 +2,11 @@
 // lines: [order-related intro, funny/niche to character, impatient in-character]
 // {color} in any line is replaced with the actual paint color name at display time.
 
-export const CUSTOMERS = [
+export interface CustomerCharacter {
+  lines: string[]; // [intro, funny/niche, impatient] — shown in sequence per visit
+}
+
+export const CUSTOMERS: CustomerCharacter[] = [
 
   // ── CONTRACTORS & TRADESPEOPLE ───────────────────────────────────────────
 
@@ -691,6 +695,6 @@ export const CUSTOMERS = [
 
 ];
 
-export function pickCustomer() {
+export function pickCustomer(): CustomerCharacter {
   return CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
 }

@@ -1,24 +1,42 @@
-import { p1Input, p2Input } from './input.js';
-import { Player } from './player.js';
-import { StoreManager } from './storemanager.js';
-import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer.js';
-import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud.js';
+import { p1Input, p2Input } from './input';
+import { Player } from './player';
+import { StoreManager } from './storemanager';
+import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer';
+import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud';
+import type { Customer } from './customer';
+import { Level, setCurrentLevel } from './level';
+import { storeLevel } from './levels/store';
 
-const canvas = document.getElementById('game-canvas');
+declare global {
+  interface Window {
+    __game: {
+      readonly player: Player;
+      readonly player2: Player | null;
+      readonly sm: StoreManager;
+    };
+  }
+}
+
+const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 initRenderer(canvas);
 
-let sm      = new StoreManager();
-const player = new Player(9, 9, p1Input);
-let player2  = null;
+// Load the level before anything that reads it (StoreManager builds its stations
+// from the level; Player collision and rendering query it too).
+const level = new Level(storeLevel);
+setCurrentLevel(level);
+
+let sm       = new StoreManager();
+const player = new Player(level.def.spawn.x, level.def.spawn.y, p1Input);
+let player2: Player | null = null;
 
 // Exposed for debugging in the browser console.
 window.__game = { get player() { return player; }, get player2() { return player2; }, get sm() { return sm; } };
 
-let lastTime = null;
+let lastTime: number | null = null;
 let running  = false;
 let elapsed  = 0;
 
-function gameLoop(timestamp) {
+function gameLoop(timestamp: number): void {
   if (!running) return;
 
   if (lastTime === null) lastTime = timestamp;
@@ -31,7 +49,7 @@ function gameLoop(timestamp) {
 
   // P2: join on first press, interact on subsequent presses
   if (!player2) {
-    if (p2Input.consumeInteract()) player2 = new Player(11, 9, p2Input);
+    if (p2Input.consumeInteract()) player2 = new Player(level.def.spawn2.x, level.def.spawn2.y, p2Input);
   } else {
     if (p2Input.consumeInteract()) sm.handleInteraction(player2);
   }
@@ -43,7 +61,7 @@ function gameLoop(timestamp) {
   for (const c of sm.allCustomers) c.update(dt);
 
   // Build remaining-cans map for customer sprite labels
-  const customerRemaining = new Map();
+  const customerRemaining = new Map<Customer, number>();
   for (const t of sm.tickets.values()) {
     customerRemaining.set(t.customer, t.cansNeeded - t.cansDelivered);
   }
@@ -71,16 +89,16 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-document.getElementById('start-btn').addEventListener('click', () => {
+document.getElementById('start-btn')!.addEventListener('click', () => {
   hideStartScreen();
   running = true;
   requestAnimationFrame(gameLoop);
 });
 
-document.getElementById('new-day-btn').addEventListener('click', () => {
+document.getElementById('new-day-btn')!.addEventListener('click', () => {
   sm = new StoreManager();
   player.clearItems();
-  player.x = 9; player.y = 9;
+  player.x = level.def.spawn.x; player.y = level.def.spawn.y;
   player2 = null;
   lastTime = null;
   elapsed  = 0;

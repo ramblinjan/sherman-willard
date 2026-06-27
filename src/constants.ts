@@ -1,7 +1,13 @@
+import type { BaseType, HueCode } from './types';
+
 export const TILE = 40;
 export const DAY_DURATION = 360; // seconds per shift
 export const COLS = 20;
 export const ROWS = 15;
+
+// Gameplay tuning
+export const MAX_CARRY = 3;          // max cans a player can hold at once
+export const CELEBRATION_TIME = 2.0; // seconds the "Order Complete!" banner shows
 
 export const ZONE = {
   WAREHOUSE_FLOOR: 'WAREHOUSE_FLOOR',
@@ -21,18 +27,20 @@ export const ZONE = {
   REGISTER:        'REGISTER',
   PICKUP:          'PICKUP',
   STOREFRONT:      'STOREFRONT',
-};
+} as const;
 
-export const BASE_TYPES = ['WHITE', 'GRAY', 'DEEP'];
-export const HUE_CODES  = ['BL', 'RD', 'YL', 'GR', 'VL', 'OR'];
+export type ZoneId = typeof ZONE[keyof typeof ZONE];
+
+export const BASE_TYPES: readonly BaseType[] = ['WHITE', 'GRAY', 'DEEP'];
+export const HUE_CODES:  readonly HueCode[]  = ['BL', 'RD', 'YL', 'GR', 'VL', 'OR'];
 
 // Base-type-dependent shake durations (seconds)
-export const SHAKE_DURATIONS = { WHITE: 3, GRAY: 6, DEEP: 9 };
+export const SHAKE_DURATIONS: Record<BaseType, number> = { WHITE: 3, GRAY: 6, DEEP: 9 };
 
 // Base-type-dependent tint durations (seconds)
-export const TINT_DURATIONS = { WHITE: 2, GRAY: 4, DEEP: 6 };
+export const TINT_DURATIONS: Record<BaseType, number> = { WHITE: 2, GRAY: 4, DEEP: 6 };
 
-export const TINT_COLORS = {
+export const TINT_COLORS: Record<HueCode, string> = {
   BL: '#2255bb',
   RD: '#bb2233',
   YL: '#ccaa00',
@@ -41,13 +49,13 @@ export const TINT_COLORS = {
   OR: '#cc6600',
 };
 
-export const BASE_COLORS = {
+export const BASE_COLORS: Record<BaseType, string> = {
   WHITE: '#e8e0d0',
   GRAY:  '#8a8a8a',
   DEEP:  '#3a3a4a',
 };
 
-export const TILE_COLORS = {
+export const TILE_COLORS: Record<ZoneId, string> = {
   WAREHOUSE_FLOOR:  '#c8b89a',
   SHELF_WHITE:      '#e8e0d0',
   SHELF_GRAY:       '#8a8a8a',

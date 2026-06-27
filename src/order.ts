@@ -1,4 +1,5 @@
-import { BASE_TYPES, HUE_CODES } from './constants.js';
+import { BASE_TYPES, HUE_CODES } from './constants';
+import type { Order } from './types';
 
 const TITLES    = ['Mrs.', 'Mr.', 'Dr.', 'Ms.', 'Mx.'];
 const LAST_NAMES = [
@@ -21,11 +22,11 @@ const CAN_COUNT_OPTS = [1, 2, 3];
 
 let nextId = 1;
 
-function pick(arr) {
+function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function generateOrder() {
+export function generateOrder(): Order {
   const hue = pick(HUE_CODES);
   const intensity = Math.floor(Math.random() * 8) + 1;
   return {
