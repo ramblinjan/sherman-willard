@@ -20,7 +20,10 @@ export function createInputHandler(
   window.addEventListener('keydown', e => {
     if (!allKeys.has(e.key)) return;
     keys[e.key] = true;
-    if (interactKeys.includes(e.key)) interactPressed = true;
+    if (interactKeys.includes(e.key)) {
+      interactPressed = true;
+      e.stopPropagation();
+    }
   });
 
   window.addEventListener('keyup', e => {
