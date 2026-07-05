@@ -2,7 +2,7 @@ import type { BaseType, HueCode } from './types';
 
 export const TILE = 40;
 export const DAY_DURATION = 360; // seconds per shift
-export const COLS = 20;
+export const COLS = 24;
 export const ROWS = 15;
 
 // Gameplay tuning
@@ -23,6 +23,9 @@ export const ZONE = {
   SHAKER_A:        'SHAKER_A',
   SHAKER_B:        'SHAKER_B',
   SHAKER_C:        'SHAKER_C',
+  SHAKER_D:        'SHAKER_D',
+  SHAKER_E:        'SHAKER_E',
+  SHAKER_F:        'SHAKER_F',
   COUNTER:         'COUNTER',
   REGISTER:        'REGISTER',
   PICKUP:          'PICKUP',
@@ -69,6 +72,9 @@ export const TILE_COLORS: Record<ZoneId, string> = {
   SHAKER_A:         '#4a6080',
   SHAKER_B:         '#4a6080',
   SHAKER_C:         '#4a6080',
+  SHAKER_D:         '#4a6080',
+  SHAKER_E:         '#4a6080',
+  SHAKER_F:         '#4a6080',
   COUNTER:          '#6a5a4a',
   REGISTER:         '#ede8df',
   PICKUP:           '#ede8df',

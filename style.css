@@ -2,23 +2,22 @@
 
 body {
   background: #1a1a2e;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
   font-family: 'Courier New', monospace;
 }
 
 #game-container {
   display: grid;
-  grid-template-columns: 220px 816px 180px;
-  grid-template-rows: auto auto 616px;
+  width: 100vw;
+  height: 100vh;
+  grid-template-columns: minmax(150px, 200px) minmax(0, 1fr) minmax(140px, 190px);
+  grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     "day   day    day"
-    ".     score  ."
     "left  stage  right";
-  gap: 8px 12px;
-  align-items: start;
+  gap: 6px;
+  padding: 6px;
 }
 
 /* Day progress banner — spans all columns */
@@ -27,7 +26,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
+  padding: 4px 10px;
 }
 
 .day-label {
@@ -60,32 +59,44 @@ body {
   box-shadow: 0 0 6px 2px rgba(255,220,50,0.6);
 }
 
-/* Center play area — overlays inside it are positioned relative to the canvas */
+/* Center play area — canvas is sized and centered by fitCanvas() in main.ts */
 #stage {
   grid-area: stage;
   position: relative;
-  width: 816px;
-  height: 616px;
-  border: 8px solid #3a3a3a;
-  box-shadow: 0 0 0 1px #555, inset 0 0 10px rgba(0,0,0,0.55);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 
 #game-canvas {
   display: block;
+  position: absolute;
+  background: #10101c;
+  box-shadow: 0 0 0 2px #3a3a3a, 0 0 0 3px #555;
+}
+
+/* Overlay box matching the canvas rect — bubbles/prompt position within it */
+#canvas-overlay {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 #left-hud {
   grid-area: left;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .hud-panel {
   background: rgba(10, 10, 20, 0.82);
   border: 1px solid #555;
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   color: #eee;
   font-size: 11px;
 }
@@ -154,18 +165,17 @@ body {
 .tint-badge.VL { background: #6633aa; color: #fff; border-color: #8855cc; }
 .tint-badge.OR { background: #cc6600; color: #fff; border-color: #ee8822; }
 
-/* Score — above the play area */
+/* Score — inline at the right end of the day banner */
 #score-panel {
-  grid-area: score;
-  justify-self: center;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
+  margin-left: 10px;
 }
 
 #score {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: bold;
   color: #ffe066;
 }
@@ -175,7 +185,9 @@ body {
   grid-area: right;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* Inventory panel — inside #right-col */
@@ -220,7 +232,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .qi-name {

@@ -1,7 +1,8 @@
+import { COLS, ROWS, TILE } from './constants';
 import { p1Input, p2Input } from './input';
 import { Player } from './player';
 import { StoreManager } from './storemanager';
-import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers } from './renderer';
+import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers, setViewScale } from './renderer';
 import { updateHUD, hideStartScreen, updateSpeechBubbles, showDayEnd, hideDayEnd } from './hud';
 import type { Customer } from './customer';
 import { Level, setCurrentLevel } from './level';
@@ -19,6 +20,38 @@ declare global {
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 initRenderer(canvas);
+
+// ── Screen-fit: size the canvas to fill #stage, preserving aspect ratio ──────
+const stage   = document.getElementById('stage')!;
+const overlay = document.getElementById('canvas-overlay')!;
+
+function fitCanvas(): void {
+  const logicalW = COLS * TILE;
+  const logicalH = ROWS * TILE;
+  const scale = Math.min(stage.clientWidth / logicalW, stage.clientHeight / logicalH);
+  const cssW  = Math.floor(logicalW * scale);
+  const cssH  = Math.floor(logicalH * scale);
+  const dpr   = window.devicePixelRatio || 1;
+
+  canvas.width  = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width  = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
+
+  const left = Math.floor((stage.clientWidth  - cssW) / 2);
+  const top  = Math.floor((stage.clientHeight - cssH) / 2);
+  canvas.style.left  = `${left}px`;
+  canvas.style.top   = `${top}px`;
+  overlay.style.left   = `${left}px`;
+  overlay.style.top    = `${top}px`;
+  overlay.style.width  = `${cssW}px`;
+  overlay.style.height = `${cssH}px`;
+
+  setViewScale(cssW / logicalW, dpr);
+}
+
+window.addEventListener('resize', fitCanvas);
+fitCanvas();
 
 // Load the level before anything that reads it (StoreManager builds its stations
 // from the level; Player collision and rendering query it too).

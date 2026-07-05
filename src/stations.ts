@@ -263,7 +263,10 @@ function makePickup(rug: RugDef): Station {
 
 // ── Registry builder ──────────────────────────────────────────────────────────
 
-const SHAKER_ZONES: ZoneId[] = [ZONE.SHAKER_A, ZONE.SHAKER_B, ZONE.SHAKER_C];
+const SHAKER_ZONES: ZoneId[] = [
+  ZONE.SHAKER_A, ZONE.SHAKER_B, ZONE.SHAKER_C,
+  ZONE.SHAKER_D, ZONE.SHAKER_E, ZONE.SHAKER_F,
+];
 const SHELF_BASE: Partial<Record<ZoneId, BaseType>> = {
   [ZONE.SHELF_WHITE]: 'WHITE', [ZONE.SHELF_GRAY]: 'GRAY', [ZONE.SHELF_DEEP]: 'DEEP',
 };

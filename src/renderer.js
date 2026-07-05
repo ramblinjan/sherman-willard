@@ -1,24 +1,42 @@
 import { TILE, COLS, ROWS, ZONE, TILE_COLORS, BASE_COLORS } from './constants';
 import { currentLevel } from './level';
+import { APPEARANCES } from './appearance';
 
 const S = TILE / 32; // scale factor relative to original 32px tile size
 
-// 2-wide shakers at cols 3, 5, 7 (shifted right 2)
+// 2-wide, 1-tall shakers in a bank along row 6
 const SHAKERS = [
-  { col: 3, label: 'A' },
-  { col: 5, label: 'B' },
-  { col: 7, label: 'C' },
+  { col: 2,  label: 'A' },
+  { col: 4,  label: 'B' },
+  { col: 6,  label: 'C' },
+  { col: 8,  label: 'D' },
+  { col: 10, label: 'E' },
+  { col: 12, label: 'F' },
 ];
 
 let canvas, ctx;
+let viewScale = 1; // CSS px per logical px (screen-fit factor)
+let viewDpr   = 1; // devicePixelRatio baked into the backing store
 
 export function initRenderer(c) {
   canvas = c;
   ctx = canvas.getContext('2d');
 }
 
+export function setViewScale(scale, dpr = 1) {
+  viewScale = scale;
+  viewDpr   = dpr;
+}
+
+export function getViewScale() {
+  return viewScale;
+}
+
 export function clear() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const k = viewScale * viewDpr;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
 }
 
 // tintMachine: sm.tintMachine state; elapsed: total elapsed seconds
@@ -62,6 +80,9 @@ const ZONE_COLORS = {
   [ZONE.SHAKER_A]:          [100, 170, 255],
   [ZONE.SHAKER_B]:          [100, 170, 255],
   [ZONE.SHAKER_C]:          [100, 170, 255],
+  [ZONE.SHAKER_D]:          [100, 170, 255],
+  [ZONE.SHAKER_E]:          [100, 170, 255],
+  [ZONE.SHAKER_F]:          [100, 170, 255],
   [ZONE.TINT_INPUT]:        [190, 120, 255],
   [ZONE.TINT_MACHINE_BODY]: [190, 120, 255],
   [ZONE.TINT_OUTPUT]:       [190, 120, 255],
@@ -124,9 +145,9 @@ function _drawInteractRugs() {
 // ── Shelf labels ──────────────────────────────────────────────────────────
 
 function _drawShelfLabels() {
-  _drawShelfBlock(3,  1, 4, 3, 'WHITE BASE', BASE_COLORS.WHITE, '#333');
-  _drawShelfBlock(8,  1, 4, 3, 'GRAY BASE',  BASE_COLORS.GRAY,  '#fff');
-  _drawShelfBlock(13, 1, 4, 3, 'DEEP BASE',  BASE_COLORS.DEEP,  '#ddd');
+  _drawShelfBlock(4,  1, 4, 3, 'WHITE BASE', BASE_COLORS.WHITE, '#333');
+  _drawShelfBlock(10, 1, 4, 3, 'GRAY BASE',  BASE_COLORS.GRAY,  '#fff');
+  _drawShelfBlock(16, 1, 4, 3, 'DEEP BASE',  BASE_COLORS.DEEP,  '#ddd');
 }
 
 function _drawShelfBlock(col, row, w, h, label, bg, textColor) {
@@ -173,9 +194,9 @@ function _drawTintingMachine(tintState, elapsed) {
 
   const ROW = 6;
 
-  // SEAL / OUTPUT HAMMER TABLE — cols 10-11 (left)
+  // SEAL / OUTPUT HAMMER TABLE — cols 15-16 (left)
   {
-    const x  = 10 * TILE + 2 * S;
+    const x  = 15 * TILE + 2 * S;
     const y  = ROW * TILE + 2 * S;
     const pw = 2 * TILE - 4 * S;
     const ph = 2 * TILE - 4 * S;
@@ -215,9 +236,9 @@ function _drawTintingMachine(tintState, elapsed) {
     ctx.fillText('SEAL', x + pw / 2, y + ph - 2 * S);
   }
 
-  // MACHINE BODY — cols 12-14 (center)
+  // MACHINE BODY — cols 17-19 (center)
   {
-    const x  = 12 * TILE + 2 * S;
+    const x  = 17 * TILE + 2 * S;
     const y  = ROW * TILE + 2 * S;
     const pw = 3 * TILE - 4 * S;
     const ph = 2 * TILE - 4 * S;
@@ -277,9 +298,9 @@ function _drawTintingMachine(tintState, elapsed) {
     ctx.fillText('TINTER', x + pw / 2, y + ph - 2 * S);
   }
 
-  // LOAD / INPUT ROLLER RACK — cols 15-16 (right)
+  // LOAD / INPUT ROLLER RACK — cols 20-21 (right)
   {
-    const x  = 15 * TILE + 2 * S;
+    const x  = 20 * TILE + 2 * S;
     const y  = ROW * TILE + 2 * S;
     const pw = 2 * TILE - 4 * S;
     const ph = 2 * TILE - 4 * S;
@@ -325,7 +346,7 @@ function _drawTintingMachine(tintState, elapsed) {
 
 function _drawBangOverlay(bangTimer) {
   const alpha = bangTimer / 0.6;
-  const machineCenter = (10 + 3.5) * TILE;
+  const machineCenter = (15 + 3.5) * TILE;
   const my = 6 * TILE + TILE;
 
   ctx.save();
@@ -348,7 +369,7 @@ function _drawShakerMachines(shakersState, elapsed) {
     const x  = col * TILE + 2 * S;
     const y  = 6 * TILE + 2 * S;
     const pw = 2 * TILE - 4 * S;
-    const ph = 2 * TILE - 4 * S;
+    const ph = 1 * TILE - 4 * S; // half-height units — six fit in the bank
 
     ctx.save();
 
@@ -384,7 +405,7 @@ function _drawShakerMachines(shakersState, elapsed) {
     ctx.lineWidth = 1;
 
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    _roundRect(x + offsetX + 6 * S, y + 6 * S, pw - 12 * S, ph - 12 * S, 3 * S);
+    _roundRect(x + offsetX + 4 * S, y + 4 * S, pw - 8 * S, ph - 8 * S, 3 * S);
     ctx.fill();
 
     ctx.fillStyle = textColor;
@@ -409,8 +430,8 @@ function _drawCounter() {
   ctx.font = `bold ${Math.round(9 * S)}px Courier New`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('REGISTER', 4 * TILE, 12 * TILE + TILE / 2);
-  ctx.fillText('PICKUP',   15 * TILE, 12 * TILE + TILE / 2);
+  ctx.fillText('REGISTER', 5.5 * TILE, 12 * TILE + TILE / 2);
+  ctx.fillText('PICKUP',   17.5 * TILE, 12 * TILE + TILE / 2);
 }
 
 // ── Zone flash ────────────────────────────────────────────────────────────
@@ -421,9 +442,9 @@ function _drawZoneFlash(zone, alpha) {
   ctx.fillStyle = '#ff3333';
 
   const regions = {
-    [ZONE.SHELF_WHITE]: { col: 3,  row: 1, w: 4, h: 3 },
-    [ZONE.SHELF_GRAY]:  { col: 8,  row: 1, w: 4, h: 3 },
-    [ZONE.SHELF_DEEP]:  { col: 13, row: 1, w: 4, h: 3 },
+    [ZONE.SHELF_WHITE]: { col: 4,  row: 1, w: 4, h: 3 },
+    [ZONE.SHELF_GRAY]:  { col: 10, row: 1, w: 4, h: 3 },
+    [ZONE.SHELF_DEEP]:  { col: 16, row: 1, w: 4, h: 3 },
   };
   const r = regions[zone];
   if (r) ctx.fillRect(r.col * TILE, r.row * TILE, r.w * TILE, r.h * TILE);
@@ -442,17 +463,155 @@ export function drawCustomers(customers, customerRemaining = new Map()) {
 function _drawOneCustomer(customer, remaining) {
   const px = customer.px;
   const py = customer.py;
+  const a  = APPEARANCES[customer.appearanceIndex] ?? APPEARANCES[0];
 
-  ctx.fillStyle = '#ee8833';
-  ctx.fillRect(px - 10 * S, py - 14 * S, 20 * S, 24 * S);
+  // Afro is drawn behind the head so the face stays visible
+  if (a.hairStyle === 'afro') {
+    ctx.fillStyle = a.hairColor;
+    ctx.beginPath();
+    ctx.arc(px, py - 20 * S, 10 * S, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  ctx.fillStyle = '#ffddbb';
+  // Body: shirt on top, pants below
+  ctx.fillStyle = a.shirt;
+  ctx.fillRect(px - 10 * S, py - 14 * S, 20 * S, 16 * S);
+  ctx.fillStyle = a.pants;
+  ctx.fillRect(px - 10 * S, py + 2 * S, 20 * S, 8 * S);
+
+  // Shirt-level accessories go over the shirt, under the head
+  if (a.accessory === 'hivis') {
+    ctx.fillStyle = '#ffe066';
+    ctx.fillRect(px - 7 * S, py - 14 * S, 3 * S, 16 * S);
+    ctx.fillRect(px + 4 * S, py - 14 * S, 3 * S, 16 * S);
+  } else if (a.accessory === 'apron') {
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillRect(px - 6 * S, py - 10 * S, 12 * S, 18 * S);
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.strokeRect(px - 6 * S, py - 10 * S, 12 * S, 18 * S);
+  } else if (a.accessory === 'toolbelt') {
+    ctx.fillStyle = '#6a4a2a';
+    ctx.fillRect(px - 10 * S, py + 0 * S, 20 * S, 4 * S);
+    ctx.fillStyle = '#c0a040';
+    ctx.fillRect(px - 2 * S, py + 0.5 * S, 4 * S, 3 * S);
+  } else if (a.accessory === 'bowtie') {
+    ctx.fillStyle = '#bb2233';
+    ctx.beginPath();
+    ctx.moveTo(px, py - 12.5 * S);
+    ctx.lineTo(px - 4 * S, py - 14.5 * S);
+    ctx.lineTo(px - 4 * S, py - 10.5 * S);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(px, py - 12.5 * S);
+    ctx.lineTo(px + 4 * S, py - 14.5 * S);
+    ctx.lineTo(px + 4 * S, py - 10.5 * S);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Head
+  ctx.fillStyle = a.skin;
   ctx.beginPath();
   ctx.arc(px, py - 18 * S, 8 * S, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = '#cc9966';
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)';
   ctx.lineWidth = 1;
   ctx.stroke();
+
+  // Facial hair sits on the head, under the hair/hat
+  if (a.accessory === 'beard') {
+    ctx.fillStyle = a.hairColor;
+    ctx.beginPath();
+    ctx.arc(px, py - 16 * S, 6.5 * S, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.fill();
+  } else if (a.accessory === 'mustache') {
+    ctx.fillStyle = a.hairColor;
+    ctx.fillRect(px - 3.5 * S, py - 15.5 * S, 7 * S, 1.6 * S);
+  }
+
+  // Hair / hat
+  ctx.fillStyle = a.hairColor;
+  switch (a.hairStyle) {
+    case 'short':
+      ctx.beginPath();
+      ctx.arc(px, py - 18 * S, 8.3 * S, Math.PI, 0);
+      ctx.fill();
+      break;
+    case 'long':
+      ctx.beginPath();
+      ctx.arc(px, py - 18 * S, 8.3 * S, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(px - 9 * S, py - 18 * S, 3 * S, 11 * S);
+      ctx.fillRect(px + 6 * S, py - 18 * S, 3 * S, 11 * S);
+      break;
+    case 'bun':
+      ctx.beginPath();
+      ctx.arc(px, py - 18 * S, 8.3 * S, Math.PI, 0);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(px, py - 27 * S, 3.5 * S, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'ponytail':
+      ctx.beginPath();
+      ctx.arc(px, py - 18 * S, 8.3 * S, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(px + 6 * S, py - 22 * S, 3 * S, 11 * S);
+      break;
+    case 'mohawk':
+      ctx.fillRect(px - 1.6 * S, py - 29 * S, 3.2 * S, 11 * S);
+      break;
+    case 'cap':
+      ctx.beginPath();
+      ctx.arc(px, py - 19.5 * S, 8 * S, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(px - 9 * S, py - 21 * S, 18 * S, 2.2 * S);
+      break;
+    case 'beanie':
+      ctx.beginPath();
+      ctx.arc(px, py - 19.5 * S, 8.2 * S, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(px - 8.5 * S, py - 21.5 * S, 17 * S, 3.4 * S);
+      break;
+    case 'hardhat':
+      ctx.beginPath();
+      ctx.arc(px, py - 19.5 * S, 8.6 * S, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(px - 10.5 * S, py - 20 * S, 21 * S, 2.4 * S);
+      break;
+    case 'afro': // drawn behind the head above
+    case 'bald':
+      break;
+  }
+
+  // Eyewear / headphones over everything
+  if (a.accessory === 'glasses') {
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(px - 3.2 * S, py - 19 * S, 2.3 * S, 0, Math.PI * 2);
+    ctx.arc(px + 3.2 * S, py - 19 * S, 2.3 * S, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(px - 1 * S, py - 19 * S);
+    ctx.lineTo(px + 1 * S, py - 19 * S);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  } else if (a.accessory === 'sunglasses') {
+    ctx.fillStyle = '#101018';
+    ctx.fillRect(px - 6 * S, py - 21 * S, 12 * S, 3.4 * S);
+  } else if (a.accessory === 'headphones') {
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2 * S;
+    ctx.beginPath();
+    ctx.arc(px, py - 18 * S, 9 * S, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(px - 10.5 * S, py - 20.5 * S, 3 * S, 5 * S);
+    ctx.fillRect(px + 7.5 * S,  py - 20.5 * S, 3 * S, 5 * S);
+  }
 
   if (customer.state === 'WAITING' && customer.currentOrder) {
     const lastName = customer.currentOrder.customerName.split(' ').pop();
@@ -476,6 +635,18 @@ export function drawPlayer(player, bodyColor = '#3399ee', elapsed = 0) {
   const py = player.py;
 
   ctx.save();
+
+  // Dash trail — ghost silhouettes behind the direction of travel
+  if (player.dashTime > 0) {
+    for (const [dist, alpha] of [[14, 0.25], [26, 0.12]]) {
+      const gx = px - player.facingX * dist * S;
+      const gy = py - player.facingY * dist * S;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = bodyColor;
+      ctx.fillRect(gx - 10 * S, gy - 14 * S, 20 * S, 24 * S);
+    }
+    ctx.globalAlpha = 1;
+  }
 
   ctx.fillStyle = bodyColor;
   ctx.fillRect(px - 10 * S, py - 14 * S, 20 * S, 24 * S);
@@ -503,6 +674,17 @@ export function drawPlayer(player, bodyColor = '#3399ee', elapsed = 0) {
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
     ctx.strokeRect(bx, by, 10 * S, 6 * S);
   });
+
+  // Dash cooldown bar under the player — fills back up as the dash recharges
+  const readiness = player.dashReadiness;
+  if (readiness !== undefined && readiness < 1) {
+    const bw = 20 * S, bh = 2.5 * S;
+    const bx = px - bw / 2, by = py + 12 * S;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#66ddff';
+    ctx.fillRect(bx, by, bw * readiness, bh);
+  }
 
   // Action badge above head only when storemanager confirmed a valid action exists
   const nearZone = player.activeZone;
@@ -580,7 +762,8 @@ function _drawActionBadge(cx, cy, zone, rgb) {
     ctx.lineTo(cx + 2.5 * S, cy + 2 * S);
     ctx.stroke();
 
-  } else if (zone === ZONE.SHAKER_A || zone === ZONE.SHAKER_B || zone === ZONE.SHAKER_C) {
+  } else if (zone === ZONE.SHAKER_A || zone === ZONE.SHAKER_B || zone === ZONE.SHAKER_C ||
+             zone === ZONE.SHAKER_D || zone === ZONE.SHAKER_E || zone === ZONE.SHAKER_F) {
     // Two zigzag lines
     [-1.8 * S, 1.8 * S].forEach(dy => {
       ctx.beginPath();

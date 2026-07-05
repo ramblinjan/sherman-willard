@@ -1,11 +1,11 @@
 import { TILE, COLS, DAY_DURATION } from './constants';
+import { getViewScale } from './renderer';
 import type { BaseType } from './types';
 import type { StoreManager } from './storemanager';
 import type { Player } from './player';
 import type { Customer } from './customer';
 
 const el = (id: string): HTMLElement => document.getElementById(id)!;
-const CONTAINER = COLS * TILE; // canvas width in px
 
 // Two independent speech bubble groups: queue (register line) and pickup
 type BubbleKey = 'queue' | 'pickup';
@@ -68,8 +68,8 @@ function _updateLeftMirrors(sm: StoreManager, p2Active: boolean): void {
   if (p2Active) {
     const shakerListLeft = el('shaker-list-left');
     shakerListLeft.innerHTML = '';
-    ['A', 'B', 'C'].forEach((lbl, i) => {
-      const shaker = sm.shakers[i];
+    sm.shakers.forEach((shaker, i) => {
+      const lbl = String.fromCharCode(65 + i);
       const div = document.createElement('div');
       div.className = 'shaker-row';
       let statusText: string, statusClass: string;
@@ -158,8 +158,8 @@ function _updateRightPanel(sm: StoreManager): void {
   // Shaker statuses
   const shakerList = el('shaker-list');
   shakerList.innerHTML = '';
-  ['A', 'B', 'C'].forEach((lbl, i) => {
-    const shaker = sm.shakers[i];
+  sm.shakers.forEach((shaker, i) => {
+    const lbl = String.fromCharCode(65 + i);
     const div = document.createElement('div');
     div.className = 'shaker-row';
 
@@ -289,11 +289,13 @@ function _tickBubble(bubble: HTMLElement, textEl: HTMLElement, customers: Custom
   bubble.classList.remove('hidden');
   textEl.textContent = state.currentText;
 
+  // Overlay is aligned to the canvas rect; logical px → screen px via view scale
+  const scale = getViewScale();
   const w    = bubble.offsetWidth;
   const h    = bubble.offsetHeight;
-  let left   = state.target.px - w / 2;
-  let top    = state.target.py - 44 * (TILE / 32) - h;
-  left = Math.max(4, Math.min(CONTAINER - w - 4, left));
+  let left   = state.target.px * scale - w / 2;
+  let top    = (state.target.py - 44 * (TILE / 32)) * scale - h;
+  left = Math.max(4, Math.min(COLS * TILE * scale - w - 4, left));
   top  = Math.max(4, top);
   bubble.style.left = left + 'px';
   bubble.style.top  = top + 'px';

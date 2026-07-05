@@ -1,6 +1,7 @@
 import { TILE } from './constants';
 import type { Order } from './types';
 import type { CustomerCharacter } from './dialogue';
+import { drawAppearanceIndex } from './appearance';
 import { currentLevel } from './level';
 
 const WALK_SPEED = 3.5; // tiles per second
@@ -18,6 +19,7 @@ export class Customer {
   lines: string[] = []; // 3 sequential lines: [intro, funny, impatient]
   speech: Speech = { state: 'hidden' };
   reqId = 0; // bumped each arrival; guards stale dialogue
+  appearanceIndex = 0; // index into APPEARANCES; assigned each arrival
   private _targetX = 0;
   private _targetY = 16;
 
@@ -26,6 +28,7 @@ export class Customer {
     this.currentOrder = order;
     this.lines = character?.lines ?? [];
     this.reqId++;
+    this.appearanceIndex = drawAppearanceIndex();
     this.speech = { state: 'hidden' };
     const pos = currentLevel().queuePositions[queueSlot];
     this.x = pos.x;

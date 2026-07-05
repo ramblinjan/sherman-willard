@@ -4,8 +4,8 @@ import { OrderTicket } from './ticket';
 import { pickCustomer } from './dialogue';
 import type { StoreManager } from './storemanager';
 
-const MAX_QUEUE      = 6; // max customers waiting in the register line
-const SPAWN_INTERVAL = 8; // seconds between arrivals
+const MAX_QUEUE      = 12; // max customers waiting in the register line
+const SPAWN_INTERVAL = 5;  // seconds between arrivals
 
 // Owns customer arrival: its own cadence + ticket id sequence. Registers each
 // new customer with the store it's given. Extracted from StoreManager so the

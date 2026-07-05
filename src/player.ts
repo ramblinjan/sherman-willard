@@ -6,6 +6,9 @@ import type { InputHandler } from './input';
 import type { Item } from './item';
 
 const SPEED = 4.5; // tiles per second
+const DASH_MULT     = 3;    // speed multiplier while dashing
+const DASH_TIME     = 0.18; // seconds of boosted speed per dash
+const DASH_COOLDOWN = 1.4;  // seconds before the next dash is available
 
 export class Player {
   x: number;
@@ -15,6 +18,8 @@ export class Player {
   facingX = 0;
   facingY = 1;
   activeZone: ZoneId | null = null; // set each frame by StoreManager; null = no valid action
+  dashTime = 0;
+  dashCooldown = 0;
 
   constructor(x = 9, y = 9, inputHandler: InputHandler = p1Input) {
     this.x = x;
@@ -30,7 +35,15 @@ export class Player {
       this.facingY = dy;
     }
 
-    const speed = SPEED * dt;
+    if (this.dashTime > 0)     this.dashTime     -= dt;
+    if (this.dashCooldown > 0) this.dashCooldown -= dt;
+    // Dash only triggers while moving — no standing-still bursts
+    if (this.input.consumeDash() && this.dashCooldown <= 0 && (dx !== 0 || dy !== 0)) {
+      this.dashTime     = DASH_TIME;
+      this.dashCooldown = DASH_COOLDOWN;
+    }
+
+    const speed = SPEED * (this.dashTime > 0 ? DASH_MULT : 1) * dt;
     const nx = this.x + dx * speed;
     const ny = this.y + dy * speed;
 
@@ -54,6 +67,11 @@ export class Player {
 
   clearItems(): void {
     this.held = [];
+  }
+
+  // 0 = just dashed, 1 = fully recharged (for the HUD cooldown bar)
+  get dashReadiness(): number {
+    return Math.max(0, Math.min(1, 1 - this.dashCooldown / DASH_COOLDOWN));
   }
 
   get totalHeld(): number {

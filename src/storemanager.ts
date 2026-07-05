@@ -35,6 +35,9 @@ export class StoreManager {
     { ticketId: null, timer: 0, status: 'idle' },
     { ticketId: null, timer: 0, status: 'idle' },
     { ticketId: null, timer: 0, status: 'idle' },
+    { ticketId: null, timer: 0, status: 'idle' },
+    { ticketId: null, timer: 0, status: 'idle' },
+    { ticketId: null, timer: 0, status: 'idle' },
   ];
   tintMachine: TintMachine = {
     inputQueue:  [],
@@ -50,7 +53,7 @@ export class StoreManager {
   dayOver     = false;
 
   // Public model state that stations operate on.
-  freePickupSlots: number[] = [0, 1, 2, 3, 4, 5];
+  freePickupSlots: number[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   celebrationTimer = 0;
   readonly stations: Station[] = currentLevel().stations;
 
