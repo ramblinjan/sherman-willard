@@ -4,42 +4,58 @@ export interface InputHandler {
   getMoveDelta(): MoveDelta;
   consumeInteract(): boolean;
   consumeDash(): boolean;
+  clearKeys(): void;
 }
 
+// All key matching uses e.code (physical key), never e.key: e.key is
+// modifier-sensitive ('w' becomes 'W' while Shift is held), so a key released
+// mid-dash would fire keyup under a different name and stay stuck down.
 export function createInputHandler(
-  upKeys: string[],
-  downKeys: string[],
-  leftKeys: string[],
-  rightKeys: string[],
-  interactKeys: string[],
-  dashCodes: string[] = [], // matched against e.code (ShiftLeft vs ShiftRight both report e.key 'Shift')
+  upCodes: string[],
+  downCodes: string[],
+  leftCodes: string[],
+  rightCodes: string[],
+  interactCodes: string[],
+  dashCodes: string[] = [],
 ): InputHandler {
-  const keys: Record<string, boolean> = {};
+  const down = new Set<string>();
   let interactPressed = false;
   let dashPressed = false;
 
-  const allKeys = new Set([...upKeys, ...downKeys, ...leftKeys, ...rightKeys, ...interactKeys]);
+  const tracked = new Set([...upCodes, ...downCodes, ...leftCodes, ...rightCodes, ...interactCodes]);
 
   window.addEventListener('keydown', e => {
     if (dashCodes.includes(e.code) && !e.repeat) dashPressed = true;
-    if (!allKeys.has(e.key)) return;
-    keys[e.key] = true;
-    if (interactKeys.includes(e.key)) {
+    if (!tracked.has(e.code)) return;
+    down.add(e.code);
+    if (interactCodes.includes(e.code)) {
       interactPressed = true;
       e.preventDefault();
     }
   });
 
+  // Unconditional release — never gated on current modifier state
   window.addEventListener('keyup', e => {
-    keys[e.key] = false;
+    down.delete(e.code);
+  });
+
+  function clearKeys(): void {
+    down.clear();
+  }
+
+  // Focus loss eats keyup events (alt-tab, dev tools, OS shortcuts) — flush
+  // everything rather than leave a phantom key held.
+  window.addEventListener('blur', clearKeys);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) clearKeys();
   });
 
   function getMoveDelta(): MoveDelta {
     let dx = 0, dy = 0;
-    if (upKeys.some(k    => keys[k])) dy -= 1;
-    if (downKeys.some(k  => keys[k])) dy += 1;
-    if (leftKeys.some(k  => keys[k])) dx -= 1;
-    if (rightKeys.some(k => keys[k])) dx += 1;
+    if (upCodes.some(c    => down.has(c))) dy -= 1;
+    if (downCodes.some(c  => down.has(c))) dy += 1;
+    if (leftCodes.some(c  => down.has(c))) dx -= 1;
+    if (rightCodes.some(c => down.has(c))) dx += 1;
     return { dx, dy };
   }
 
@@ -53,13 +69,13 @@ export function createInputHandler(
     return false;
   }
 
-  return { getMoveDelta, consumeInteract, consumeDash };
+  return { getMoveDelta, consumeInteract, consumeDash, clearKeys };
 }
 
 export const p1Input = createInputHandler(
-  ['w', 'W'], ['s', 'S'], ['a', 'A'], ['d', 'D'], ['e', 'E'], ['ShiftLeft']
+  ['KeyW'], ['KeyS'], ['KeyA'], ['KeyD'], ['KeyE'], ['ShiftLeft']
 );
 
 export const p2Input = createInputHandler(
-  ['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight'], ['/'], ['ShiftRight']
+  ['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight'], ['Slash'], ['ShiftRight']
 );
