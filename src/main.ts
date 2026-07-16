@@ -1,5 +1,6 @@
 import { COLS, ROWS, TILE } from './constants';
 import { p1Input, p2Input } from './input';
+import { isTouchDevice, initTouchControls } from './touch';
 import { Player } from './player';
 import { StoreManager } from './storemanager';
 import { initRenderer, clear, drawTiles, drawPlayer, drawCustomers, setViewScale } from './renderer';
@@ -28,10 +29,18 @@ const overlay = document.getElementById('canvas-overlay')!;
 function fitCanvas(): void {
   const logicalW = COLS * TILE;
   const logicalH = ROWS * TILE;
-  const scale = Math.min(stage.clientWidth / logicalW, stage.clientHeight / logicalH);
-  const cssW  = Math.floor(logicalW * scale);
-  const cssH  = Math.floor(logicalH * scale);
-  const dpr   = window.devicePixelRatio || 1;
+  const dpr = window.devicePixelRatio || 1;
+
+  let cssW: number, cssH: number;
+  if (document.body.classList.contains('touch-mode')) {
+    // Mobile: stretch-fill the whole stage, even if aspect ratio distorts
+    cssW = stage.clientWidth;
+    cssH = stage.clientHeight;
+  } else {
+    const scale = Math.min(stage.clientWidth / logicalW, stage.clientHeight / logicalH);
+    cssW = Math.floor(logicalW * scale);
+    cssH = Math.floor(logicalH * scale);
+  }
 
   canvas.width  = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
@@ -47,8 +56,12 @@ function fitCanvas(): void {
   overlay.style.width  = `${cssW}px`;
   overlay.style.height = `${cssH}px`;
 
-  setViewScale(cssW / logicalW, dpr);
+  setViewScale(cssW / logicalW, cssH / logicalH, dpr);
 }
+
+// Touch mode changes layout (hidden gutters, stretch-fill), so detect it
+// before the first fit.
+if (isTouchDevice()) initTouchControls();
 
 window.addEventListener('resize', fitCanvas);
 fitCanvas();

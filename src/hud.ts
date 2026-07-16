@@ -1,4 +1,4 @@
-import { TILE, COLS, DAY_DURATION } from './constants';
+import { TILE, COLS, ROWS, DAY_DURATION } from './constants';
 import { getViewScale } from './renderer';
 import type { BaseType } from './types';
 import type { StoreManager } from './storemanager';
@@ -226,7 +226,21 @@ export function showCelebration(show: boolean): void {
   el('celebration').classList.toggle('hidden', !show);
 }
 
+const isTouchMode = (): boolean => document.body.classList.contains('touch-mode');
+
 export function updateSpeechBubbles(queueCustomers: Customer[], pickupCustomers: Customer[], dt = 0): void {
+  if (isTouchMode()) {
+    // One bubble at a time on mobile — queue speaker gets priority
+    _tickBubble(el('speech-bubble'), el('speech-text'), queueCustomers, dt, 'queue');
+    if (_bubbleState.queue.target) {
+      _bubbleState.pickup.target = null;
+      _bubbleState.pickup.timer  = 0;
+      el('speech-bubble-2').classList.add('hidden');
+    } else {
+      _tickBubble(el('speech-bubble-2'), el('speech-text-2'), pickupCustomers, dt, 'pickup');
+    }
+    return;
+  }
   _tickBubble(el('speech-bubble'),   el('speech-text'),   queueCustomers,  dt, 'queue');
   _tickBubble(el('speech-bubble-2'), el('speech-text-2'), pickupCustomers, dt, 'pickup');
 }
@@ -290,13 +304,27 @@ function _tickBubble(bubble: HTMLElement, textEl: HTMLElement, customers: Custom
   textEl.textContent = state.currentText;
 
   // Overlay is aligned to the canvas rect; logical px → screen px via view scale
-  const scale = getViewScale();
-  const w    = bubble.offsetWidth;
-  const h    = bubble.offsetHeight;
-  let left   = state.target.px * scale - w / 2;
-  let top    = (state.target.py - 44 * (TILE / 32)) * scale - h;
-  left = Math.max(4, Math.min(COLS * TILE * scale - w - 4, left));
-  top  = Math.max(4, top);
+  const scale   = getViewScale();
+  const w       = bubble.offsetWidth;
+  const h       = bubble.offsetHeight;
+  const canvasW = COLS * TILE * scale.x;
+  const canvasH = ROWS * TILE * scale.y;
+  const cx      = state.target.px * scale.x;
+  const cy      = state.target.py * scale.y;
+
+  let left: number, top: number;
+  if (isTouchMode()) {
+    // Beside the customer (flip to the left if it would overflow) so the
+    // bubble covers as little of the play area as possible
+    left = cx + 16 * scale.x;
+    if (left + w > canvasW - 4) left = cx - 16 * scale.x - w;
+    top = cy - h / 2 - 10;
+  } else {
+    left = cx - w / 2;
+    top  = cy - 44 * (TILE / 32) * scale.y - h;
+  }
+  left = Math.max(4, Math.min(canvasW - w - 4, left));
+  top  = Math.max(4, Math.min(canvasH - h - 4, top));
   bubble.style.left = left + 'px';
   bubble.style.top  = top + 'px';
 }

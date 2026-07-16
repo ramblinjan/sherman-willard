@@ -5,6 +5,10 @@ export interface InputHandler {
   consumeInteract(): boolean;
   consumeDash(): boolean;
   clearKeys(): void;
+  // Touch entry points — feed the same state the keyboard handlers set
+  setAnalogMove(dx: number, dy: number): void;
+  pressInteract(): void;
+  pressDash(): void;
 }
 
 // All key matching uses e.code (physical key), never e.key: e.key is
@@ -21,6 +25,8 @@ export function createInputHandler(
   const down = new Set<string>();
   let interactPressed = false;
   let dashPressed = false;
+  let analogX = 0;
+  let analogY = 0;
 
   const tracked = new Set([...upCodes, ...downCodes, ...leftCodes, ...rightCodes, ...interactCodes]);
 
@@ -41,6 +47,8 @@ export function createInputHandler(
 
   function clearKeys(): void {
     down.clear();
+    analogX = 0;
+    analogY = 0;
   }
 
   // Focus loss eats keyup events (alt-tab, dev tools, OS shortcuts) — flush
@@ -56,8 +64,20 @@ export function createInputHandler(
     if (downCodes.some(c  => down.has(c))) dy += 1;
     if (leftCodes.some(c  => down.has(c))) dx -= 1;
     if (rightCodes.some(c => down.has(c))) dx += 1;
+    // Keyboard wins; otherwise fall back to the analog (touch) vector
+    if (dx === 0 && dy === 0 && (analogX !== 0 || analogY !== 0)) {
+      return { dx: analogX, dy: analogY };
+    }
     return { dx, dy };
   }
+
+  function setAnalogMove(x: number, y: number): void {
+    analogX = Math.max(-1, Math.min(1, x));
+    analogY = Math.max(-1, Math.min(1, y));
+  }
+
+  function pressInteract(): void { interactPressed = true; }
+  function pressDash(): void     { dashPressed = true; }
 
   function consumeInteract(): boolean {
     if (interactPressed) { interactPressed = false; return true; }
@@ -69,7 +89,7 @@ export function createInputHandler(
     return false;
   }
 
-  return { getMoveDelta, consumeInteract, consumeDash, clearKeys };
+  return { getMoveDelta, consumeInteract, consumeDash, clearKeys, setAnalogMove, pressInteract, pressDash };
 }
 
 export const p1Input = createInputHandler(

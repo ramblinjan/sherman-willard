@@ -323,12 +323,13 @@ kbd {
   font-family: inherit;
 }
 
-/* Customer speech bubble */
+/* Customer speech bubble — background stays translucent so the play area
+   reads through it; the text itself is fully opaque */
 #speech-bubble {
   position: absolute;
   max-width: 190px;
-  background: #fffdf5;
-  border: 2px solid #2a2a2a;
+  background: rgba(255, 253, 245, 0.72);
+  border: 2px solid rgba(42, 42, 42, 0.75);
   border-radius: 10px;
   color: #1a1a1a;
   font-size: 11px;
@@ -337,14 +338,14 @@ kbd {
   pointer-events: none;
   z-index: 5;
   text-align: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 #speech-bubble-2 {
   position: absolute;
   max-width: 190px;
-  background: #fffdf5;
-  border: 2px solid #2a2a2a;
+  background: rgba(255, 253, 245, 0.72);
+  border: 2px solid rgba(42, 42, 42, 0.75);
   border-radius: 10px;
   color: #1a1a1a;
   font-size: 11px;
@@ -353,7 +354,7 @@ kbd {
   pointer-events: none;
   z-index: 5;
   text-align: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 #speech-bubble-2::after {
   content: '';
@@ -363,7 +364,7 @@ kbd {
   transform: translateX(-50%);
   border-width: 9px 7px 0 7px;
   border-style: solid;
-  border-color: #2a2a2a transparent transparent transparent;
+  border-color: rgba(42, 42, 42, 0.75) transparent transparent transparent;
 }
 #speech-bubble-2::before {
   content: '';
@@ -373,7 +374,7 @@ kbd {
   transform: translateX(-50%);
   border-width: 7px 5px 0 5px;
   border-style: solid;
-  border-color: #fffdf5 transparent transparent transparent;
+  border-color: rgba(255, 253, 245, 0.72) transparent transparent transparent;
   z-index: 1;
 }
 
@@ -386,7 +387,7 @@ kbd {
   transform: translateX(-50%);
   border-width: 9px 7px 0 7px;
   border-style: solid;
-  border-color: #2a2a2a transparent transparent transparent;
+  border-color: rgba(42, 42, 42, 0.75) transparent transparent transparent;
 }
 #speech-bubble::before {
   content: '';
@@ -396,7 +397,7 @@ kbd {
   transform: translateX(-50%);
   border-width: 7px 5px 0 5px;
   border-style: solid;
-  border-color: #fffdf5 transparent transparent transparent;
+  border-color: rgba(255, 253, 245, 0.72) transparent transparent transparent;
   z-index: 1;
 }
 
@@ -530,3 +531,137 @@ kbd {
 }
 
 #new-day-btn:hover { background: #ffee99; }
+
+/* ── Touch controls (built by touch.ts when a coarse pointer is detected) ── */
+
+#touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#joystick {
+  position: absolute;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#joystick-thumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  will-change: transform;
+}
+
+#touch-buttons {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+  pointer-events: none;
+}
+
+#touch-buttons button {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 26px;
+  opacity: 0.75;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+}
+
+#btn-dash { margin-right: 78px; } /* diagonal offset so thumbs don't collide */
+
+#touch-buttons button.pressed {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.touch-mode #prompt-key { display: none; }
+
+/* Touch mode: no keyboard instructions (and no P2 join), regardless of size */
+.touch-mode .controls-list { display: none; }
+
+/* Touch mode hides the side HUD at ANY size (tablets included) and lets the
+   canvas stretch-fill the stage */
+.touch-mode #game-container {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "day"
+    "stage";
+}
+.touch-mode #left-hud,
+.touch-mode #right-col { display: none; }
+
+/* Side-positioned bubbles on touch don't get a downward tail */
+.touch-mode #speech-bubble::after,
+.touch-mode #speech-bubble::before,
+.touch-mode #speech-bubble-2::after,
+.touch-mode #speech-bubble-2::before { display: none; }
+
+.touch-mode #speech-bubble,
+.touch-mode #speech-bubble-2 { max-width: 150px; }
+
+/* ── Narrow screens: hide the side gutters, canvas takes full width ── */
+
+@media (max-width: 900px) {
+  #game-container {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "day"
+      "stage";
+  }
+  #left-hud, #right-col { display: none; }
+}
+
+/* ── Portrait phones: the store is landscape-shaped ── */
+
+#rotate-hint { display: none; }
+
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate-hint {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(10, 10, 20, 0.94);
+    color: #ffe066;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+  }
+  #rotate-hint span {
+    color: #888;
+    font-size: 12px;
+    font-weight: normal;
+  }
+}

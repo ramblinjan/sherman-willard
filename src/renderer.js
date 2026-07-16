@@ -15,28 +15,29 @@ const SHAKERS = [
 ];
 
 let canvas, ctx;
-let viewScale = 1; // CSS px per logical px (screen-fit factor)
-let viewDpr   = 1; // devicePixelRatio baked into the backing store
+let viewScaleX = 1; // CSS px per logical px (screen-fit factor)
+let viewScaleY = 1; // may differ from X on mobile, where the canvas stretch-fills
+let viewDpr    = 1; // devicePixelRatio baked into the backing store
 
 export function initRenderer(c) {
   canvas = c;
   ctx = canvas.getContext('2d');
 }
 
-export function setViewScale(scale, dpr = 1) {
-  viewScale = scale;
-  viewDpr   = dpr;
+export function setViewScale(scaleX, scaleY = scaleX, dpr = 1) {
+  viewScaleX = scaleX;
+  viewScaleY = scaleY;
+  viewDpr    = dpr;
 }
 
 export function getViewScale() {
-  return viewScale;
+  return { x: viewScaleX, y: viewScaleY };
 }
 
 export function clear() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const k = viewScale * viewDpr;
-  ctx.setTransform(k, 0, 0, k, 0, 0);
+  ctx.setTransform(viewScaleX * viewDpr, 0, 0, viewScaleY * viewDpr, 0, 0);
 }
 
 // tintMachine: sm.tintMachine state; elapsed: total elapsed seconds
