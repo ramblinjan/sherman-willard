@@ -594,7 +594,6 @@ kbd {
   cursor: pointer;
 }
 
-#btn-dash { margin-right: 78px; } /* diagonal offset so thumbs don't collide */
 
 #touch-buttons button.pressed {
   background: rgba(255, 255, 255, 0.18);
@@ -602,6 +601,22 @@ kbd {
 }
 
 .touch-mode #prompt-key { display: none; }
+
+/* Fullscreen toggle — appended to the day banner in touch mode */
+#btn-fullscreen {
+  margin-left: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #bbb;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
 
 /* Touch mode: no keyboard instructions (and no P2 join), regardless of size */
 .touch-mode .controls-list { display: none; }

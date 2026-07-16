@@ -15,6 +15,38 @@ export function isTouchDevice(): boolean {
 const JOY_RADIUS = 52;   // px from center to full deflection
 const DEAD_ZONE  = 0.22; // fraction of radius before movement registers
 
+// ── Fullscreen (with webkit fallbacks; unavailable on iPhone Safari) ────────
+type FsElement  = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
+type FsDocument = Document & {
+  webkitExitFullscreen?: () => Promise<void> | void;
+  webkitFullscreenElement?: Element | null;
+};
+
+function fsAvailable(): boolean {
+  const el = document.documentElement as FsElement;
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+
+function isFullscreen(): boolean {
+  const doc = document as FsDocument;
+  return !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+}
+
+function enterFullscreen(): void {
+  const el = document.documentElement as FsElement;
+  try {
+    const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
+    const result = req?.call(el);
+    if (result instanceof Promise) result.catch(() => { /* gesture rejected — fine */ });
+  } catch { /* unsupported — fine */ }
+}
+
+function exitFullscreen(): void {
+  const doc = document as FsDocument;
+  const exit = doc.exitFullscreen ?? doc.webkitExitFullscreen;
+  try { exit?.call(doc); } catch { /* fine */ }
+}
+
 export function initTouchControls(): void {
   document.body.classList.add('touch-mode');
 
@@ -91,4 +123,28 @@ export function initTouchControls(): void {
 
   bindButton('btn-interact', () => p1Input.pressInteract());
   bindButton('btn-dash',     () => p1Input.pressDash());
+
+  // ── Fullscreen toggle — lives at the end of the day banner ────────────────
+  const banner = document.getElementById('day-banner');
+  if (banner && fsAvailable()) {
+    const fsBtn = document.createElement('button');
+    fsBtn.id = 'btn-fullscreen';
+    fsBtn.textContent = '⛶';
+    fsBtn.setAttribute('aria-label', 'Toggle fullscreen');
+    banner.appendChild(fsBtn);
+
+    fsBtn.addEventListener('click', () => {
+      if (isFullscreen()) exitFullscreen();
+      else enterFullscreen();
+    });
+
+    // Back button / swipe-from-top also exit natively; keep the icon in sync
+    const sync = () => { fsBtn.textContent = isFullscreen() ? '✕' : '⛶'; };
+    document.addEventListener('fullscreenchange', sync);
+    document.addEventListener('webkitfullscreenchange', sync);
+
+    // Starting a shift is a user gesture — ride it into fullscreen
+    document.getElementById('start-btn')?.addEventListener('click', enterFullscreen);
+    document.getElementById('new-day-btn')?.addEventListener('click', enterFullscreen);
+  }
 }
