@@ -1,8 +1,8 @@
-# Sherman & Willard Paint Store
+# Paint Store Simulator
 
 A browser-based paint store management game. Mix custom paint orders, run the tinting machine, and get cans to customers before they lose patience.
 
-**[Play it here](https://ramblinjan.github.io/sherman-willard/)**
+**[Play it here](https://ramblinjan.github.io/paint-store/)**
 
 ## How it works
 
